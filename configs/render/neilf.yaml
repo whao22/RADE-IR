@@ -1,0 +1,41 @@
+# @package _global_
+
+render_type: neilf
+
+opt:
+  tone: false
+  gamma: false
+  bound: 16.0
+  use_global_shs: true
+  use_ldr_image: false
+  sample_num: 64
+
+  gamma_lr: 0.01
+  env_lr: 0.0025
+  env_rest_lr: 0.0025
+  normal_lr: 0.01
+  base_color_lr: 0.01
+  roughness_lr: 0.01
+  metallic_lr: 0.01
+  light_lr: 0.001
+  light_rest_lr: -1.
+  visibility_lr: 0.0025
+  visibility_rest_lr: 0.0025
+
+  lambda_pbr: 1.0
+  lambda_base_color: 0.005
+  lambda_base_color_smooth: 0.006
+  lambda_metallic_smooth: 0.002
+  lambda_roughness_smooth: 0.002
+  lambda_light: 0.01
+  lambda_visibility: 0.001
+  lambda_pseudo_normal: 1
+  lambda_env_tv: 0.001
+  lambda_brdf_tv: 1.0
+
+  densify_grad_normal_threshold: 0.000004
+
+pipeline:
+  compute_neilf_python: true
+  
+hdr: null

@@ -1,0 +1,6 @@
+# @package _global_
+
+render_type: neilf
+
+opt:
+  sample_num: 24

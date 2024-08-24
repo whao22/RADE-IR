@@ -1,0 +1,12 @@
+# @package _global_
+
+dataset:
+  use_coord_map: false
+  kernel_size: 0.0
+  use_decoupled_appearance: false
+
+opt:
+  lambda_depth_normal: 0.05
+  lambda_normal_bilateral_smooth: 0.005
+  appearance_embeddings_lr: 0.001
+  appearance_network_lr: 0.001
