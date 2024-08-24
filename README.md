@@ -1,4 +1,4 @@
-# 3DGSA-IR: Inverse Rendering of Human Avatars from Monocular Video Based on 3D Gaussians
+# 3DGSA-IR: Animatable and Relightable Avatar Inverse Rendering Based on 3D Gaussian Splatting
 
 <div align="center">
     <div style="font-size: 1.3em; font-weight: bold;">
