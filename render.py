@@ -89,13 +89,14 @@ def predict(config):
         gaussians = GaussianModel(config.model.gaussian, config.render_type)
         scene = Scene(config, gaussians, config.exp_dir)
         scene.eval()
+        
         load_ckpt = config.get('load_ckpt', None)
         if load_ckpt is None:
             load_ckpt = os.path.join(scene.save_dir, "ckpt" + str(config.opt.iterations) + ".pth")
         scene.load_checkpoint(load_ckpt)
 
         if config.hdr is not None:
-            hdri = read_hdr(os.path.join("hdr/high_res_envmaps_2k", f"{config.hdr}.hdr"))
+            hdri = read_hdr(os.path.join("data/hdr/high_res_envmaps_2k", f"{config.hdr}.hdr"))
             hdri = torch.from_numpy(hdri).cuda()
             res = 256
             # cubemap = CubemapLight(base_res=res).cuda()
@@ -157,7 +158,7 @@ def test(config):
         scene.load_checkpoint(load_ckpt)
         
         if config.hdr is not None:
-            hdri = read_hdr(os.path.join("hdr/high_res_envmaps_2k", f"{config.hdr}.hdr"))
+            hdri = read_hdr(os.path.join("data/hdr/high_res_envmaps_2k", f"{config.hdr}.hdr"))
             hdri = torch.from_numpy(hdri).cuda()
             res = 256
             # cubemap = CubemapLight(base_res=res).cuda()
@@ -207,10 +208,11 @@ def test(config):
 
             wandb.log({'test_images': wandb_img})
 
-            rendering = torch.cat([rendering, render_pkg['opacity_render']], dim=0)
+            # rendering = torch.cat([rendering, render_pkg['opacity_render']], dim=0)
             torchvision.utils.save_image(rendering, os.path.join(render_path, f"render_{view.image_name}.png"))
             if config.hdr is not None:
-                torchvision.utils.save_image(render_pkg["rendered_pbr"], os.path.join(render_path, f"render_pbr_{view.image_name}.png"))
+                pbr_image = torch.cat([render_pkg["rendered_pbr"], render_pkg['opacity_render']], dim=0)
+                torchvision.utils.save_image(pbr_image, os.path.join(render_path, f"render_pbr_{view.image_name}.png"))
 
             # evaluate
             if config.evaluate:

@@ -10,7 +10,7 @@
 #
 import pdb
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from tqdm import tqdm
 from random import randint
 import hydra

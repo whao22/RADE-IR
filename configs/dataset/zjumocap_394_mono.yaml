@@ -35,3 +35,4 @@ dataset:
   white_background: false
   data_device: cuda
   eval: false
+  disable_filter3D: false

@@ -1,10 +1,10 @@
-# 3DGSA-IR: Animatable and Relightable Avatar Inverse Rendering Based on 3D Gaussian Splatting
+# RADE-IR: Animatable and Relightable Avatar Inverse Rendering Based on 3D Gaussian Splatting
 
 <div align="center">
     <div style="font-size: 1.3em; font-weight: bold;">
         <a href="https://arxiv.org/abs/24xx.xxxxx">Paper</a> | 
-        <a href="https://whao22.github.io/3DGSA-IR/">Project Page</a> | 
-        <a href="https://github.com/whao22/3DGSA-IR">Github</a>
+        <a href="https://whao22.github.io/RADE-IR/">Project Page</a> | 
+        <a href="https://github.com/whao22/RADE-IR">Github</a>
     </div>
     <div>
         <!-- <a href="https://arxiv.org/abs/24xx.xxxxx">Hao Wang</a> -->
@@ -13,19 +13,19 @@
         <a href="https://arxiv.org/abs/24xx.xxxxx">Rui Ma</a> -->
     </div>
     <div>
-        <image src="assets/overview.png" width="80%">
+        <image src="assets/overview.png" width="100%">
     </div>
 </div>
 
 ## Abstract
-We present 3DGSA-IR, a novel inverse rendering approach that leverages 3D Gaussians on Mesh (3DGSA) to synthesize novel views of human avatars from monocular video. 3DGSA is a novel representation of human body shape that captures both the geometry and appearance of the body. We first learn a 3D Gaussian distribution on the 3D mesh of the human body using a novel 3D-to-2D projection-based approach. We then use this distribution to synthesize novel views of the human body by sampling from the distribution and rendering the corresponding 2D images. We evaluate our approach on the ZJU-MoCap and PeopleSnapshot datasets, and demonstrate that it can synthesize novel views of human avatars with high fidelity and realistic appearance.
+We present RADE-IR, a novel inverse rendering approach that leverages 3D Gaussians on Mesh (RADE) to synthesize novel views of human avatars from monocular video. RADE is a novel representation of human body shape that captures both the geometry and appearance of the body. We first learn a 3D Gaussian distribution on the 3D mesh of the human body using a novel 3D-to-2D projection-based approach. We then use this distribution to synthesize novel views of the human body by sampling from the distribution and rendering the corresponding 2D images. We evaluate our approach on the ZJU-MoCap and PeopleSnapshot datasets, and demonstrate that it can synthesize novel views of human avatars with high fidelity and realistic appearance.
 
 
 ## Requirements
 Please run the following commands to set up the environment:
 ```Shell
-conda create -n 3DGSA-IR python=3.8
-conda activate 3DGSA-IR
+conda create -n RADE-IR python=3.8
+conda activate RADE-IR
 
 # install pytorch with cuda 11.7
 pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
@@ -136,8 +136,8 @@ python render.py mode=test dataset.test_mode=pose pose_correction=none dataset=p
 
 If you find this project useful for your research, please consider citing:
 ```bibtex
-@inproceedings{wang20243dgsair,
-    title={{3DGSA-IR: Inverse Rendering of Human Avatars from Monocular Video via Gaussians-on-Mesh}},
+@inproceedings{wang2024RADEir,
+    title={{RADE-IR: Inverse Rendering of Human Avatars from Monocular Video via Gaussians-on-Mesh}},
     author={Hao Wang},
     booktitle={arXiv},
     year={2024}
@@ -145,4 +145,4 @@ If you find this project useful for your research, please consider citing:
 ```
 
 ## Acknowledgements
-This project builds upon [3DGSA](https://github.com/mikeqzy/3dgs-avatar-release), [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGaussian) and [GS-IR](https://github.com/lzhnb/GS-IR). We appreciate the authors for their great work!
+This project builds upon [RADE](https://github.com/mikeqzy/3dgs-avatar-release), [Relightable3DGaussian](https://github.com/NJU-3DV/Relightable3DGaussian) and [GS-IR](https://github.com/lzhnb/GS-IR). We appreciate the authors for their great work!
