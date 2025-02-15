@@ -1,0 +1,14 @@
+dataset:
+  snapshot_path: data/people_snapshot_public
+  pose_path: data/people_snapshot_public/poses
+  subject: 'male-4-casual'
+  sex: 'male'
+
+start_frame: 0
+end_frame: 872
+skip: 1
+split: 'train'
+
+output:
+  dir: data/data_prepared
+  name: 'male-4-casual'

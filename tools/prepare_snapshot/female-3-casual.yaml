@@ -1,0 +1,14 @@
+dataset:
+  snapshot_path: data/people_snapshot_public
+  pose_path: data/people_snapshot_public/poses
+  subject: 'female-3-casual'
+  sex: 'female'
+
+start_frame: 0
+end_frame: 647
+skip: 1
+split: 'train'
+
+output:
+  dir: data/data_prepared
+  name: 'female-3-casual'
