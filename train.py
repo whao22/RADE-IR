@@ -185,7 +185,7 @@ def validation(iteration, testing_iterations, testing_interval, scene : Scene, e
                 data = getattr(scene, config['name'] + '_dataset')[data_idx]
                 render_pkg = render(data, iteration, scene, *renderArgs, require_coord=True, require_depth=True, compute_loss=False, is_training=False)
 
-                image = torch.clamp(render_pkg["render"], 0.0, 1.0)
+                image = torch.clamp(render_pkg["rendered_image"], 0.0, 1.0)
                 gt_image = torch.clamp(data.original_image.to("cuda"), 0.0, 1.0)
                 rendered_pbr = torch.clamp(render_pkg["rendered_pbr"], 0.0, 1.0)
                 opacity_image = torch.clamp(render_pkg["opacity_render"], 0.0, 1.0)

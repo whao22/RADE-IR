@@ -24,5 +24,5 @@ dataset:
   eval: false
   disable_filter3D: true
   
-opt:
-  densify_grad_threshold: 0.0001
+# opt:
+#   densify_grad_threshold: 0.0001

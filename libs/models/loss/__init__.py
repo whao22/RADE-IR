@@ -31,8 +31,8 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     loss_dict = {}
     deformed_gaussian = render_pkg["deformed_gaussian"]
     
-    # Loss
-    image =  render_pkg["render"]
+    # render_image loss
+    image =  render_pkg["rendered_image"]
     gt_image = data.original_image.cuda()
     
     lambda_l1 = C(iteration, config.opt.lambda_l1)
@@ -50,6 +50,23 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     loss_dict.update({
         "loss_l1": loss_l1,
         "loss_dssim": loss_dssim,
+    })
+    
+    # rendered_image2 loss
+    image2 =  render_pkg["rendered_image2"]
+    loss_l1_2 = torch.tensor(0.).cuda()
+    loss_dssim_2 = torch.tensor(0.).cuda()
+    if lambda_l1 > 0.:
+        if dataset.use_decoupled_appearance:
+            loss_l1_2 = l1_loss_appearance(image2, gt_image, deformed_gaussian, data.frame_id)
+        else:
+            loss_l1_2 = l1_loss(image, gt_image)
+    if lambda_dssim > 0.:
+        loss_dssim_2 = 1.0 - ssim(image, gt_image)
+    loss += lambda_l1 * loss_l1_2 + lambda_dssim * loss_dssim_2
+    loss_dict.update({
+        "loss_l1_2": loss_l1_2,
+        "loss_dssim_2": loss_dssim_2,
     })
 
     # perceptual loss

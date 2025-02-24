@@ -121,7 +121,7 @@ def predict(config):
             torch.cuda.synchronize()
             elapsed = iter_start.elapsed_time(iter_end)
 
-            rendering = render_pkg["render"]
+            rendering = render_pkg["rendered_image"]
 
             wandb_img = [wandb.Image(rendering[None], caption='render_{}'.format(view.image_name)),]
             wandb.log({'test_images': wandb_img})
@@ -196,7 +196,7 @@ def test(config):
             torch.cuda.synchronize()
             elapsed = iter_start.elapsed_time(iter_end)
 
-            rendering = render_pkg["render"]
+            rendering = render_pkg["rendered_image"]
             # rendering = rendering[:, y:y+h, x:x+w]
 
             gt = view.original_image[:3, :, :]

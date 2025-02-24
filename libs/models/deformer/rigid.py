@@ -234,11 +234,11 @@ class SkinningField(RigidDeform):
         # deformed_gaussians._rotation = tf.matrix_to_quaternion(rotation_bar)
         # deformed_gaussians._rotation = rotation_matrix_to_quaternion(rotation_bar)
         
-        if deformed_gaussians.use_pbr:
-            roughness_new = torch.matmul(T_fwd[:, :3, :3], gaussians._roughness.unsqueeze(-1)).squeeze(-1)
-            metallic_new = torch.matmul(T_fwd[:, :3, :3], gaussians._metallic.unsqueeze(-1)).squeeze(-1)
-            setattr(deformed_gaussians, '_roughness', roughness_new)
-            setattr(deformed_gaussians, '_metallic', metallic_new)
+        # if deformed_gaussians.use_pbr:
+        #     roughness_new = torch.matmul(T_fwd[:, :3, :3], gaussians._roughness.unsqueeze(-1)).squeeze(-1)
+        #     metallic_new = torch.matmul(T_fwd[:, :3, :3], gaussians._metallic.unsqueeze(-1)).squeeze(-1)
+        #     setattr(deformed_gaussians, '_roughness', roughness_new)
+        #     setattr(deformed_gaussians, '_metallic', metallic_new)
 
         return deformed_gaussians
 

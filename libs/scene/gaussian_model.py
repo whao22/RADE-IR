@@ -215,8 +215,9 @@ class GaussianModel:
         # precompute q_hat for normal computation
         q_hat = self.prefix_for_geometry(cov3D_precomp_act, view_transform, proj_transform)
         
+        # TODO: 有bug, 需修改！
         # construct normal vectors, equation (10) in the paper # TODO: check the sign
-        q_one = torch.cat([q_hat[:, :2], torch.zeros_like(q_hat[:, 2:])], dim=1) # [1, 3]
+        q_one = torch.cat([q_hat[:, :2], torch.ones_like(q_hat[:, 2:])], dim=1) # [1, 3]
         n_pre = -torch.permute(q_one, [0, 2, 1])
         normal_cam = proj_transform[:3, :3].T @ n_pre # [3, 1]
         return torch.nn.functional.normalize(normal_cam.squeeze(-1))
@@ -510,8 +511,8 @@ class GaussianModel:
 
         if self.use_pbr:
             base_color = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
-            roughness = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
-            metallic = torch.zeros((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
+            roughness = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda") * 0.5
+            metallic = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda") * 0.5
 
             self._base_color = nn.Parameter(base_color.requires_grad_(True))
             self._roughness = nn.Parameter(roughness.requires_grad_(True))
