@@ -220,6 +220,7 @@ class GaussianModel:
         # precompute q_hat for normal computation
         q_hat = self.prefix_for_geometry(cov3D_precomp_act, view_transform, proj_transform) # [N, 1, 3]
         
+        # TODO: 有bug, 需修改！
         # construct normal vectors, equation (10) in the paper # TODO: check the sign
         q_one =  torch.cat([q_hat[..., :2], torch.ones_like(q_hat[..., 2:])], dim=-1) # [N, 1, 3]
         n_pre = -torch.permute(q_one, [0, 2, 1]) # [N, 1, 3]

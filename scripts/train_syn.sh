@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=3dgsa-ir
+#SBATCH --job-name=RADE-IR
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=18
 #SBATCH --mem=128G
-#SBATCH --partition=L40
+#SBATCH --partition=gpujl
 #SBATCH --gres=gpu:1
 
 # show currrent status
@@ -38,9 +38,15 @@ python train.py dataset=ps_female_4 option=iter15k
 # # People-Snapshot
 # python train.py dataset=ps_male_3 option=iter50k
 # python train.py dataset=ps_male_4 option=iter50k
-# python train.py dataset=ps_female_3 option=iter50k
-# python train.py dataset=ps_female_4 option=iter50k
+# python train.py dataset=ps_female_3 option=iter15k
+python train.py dataset=ps_female_4 option=iter50k
 
+# ZJU-MoCap
+python train.py dataset=zjumocap_393_mono option=iter50k
+# python train.py dataset=zjumocap_394_mono option=iter50k
+# python train.py dataset=zjumocap_386_mono option=iter50k
+# python train.py dataset=zjumocap_387_mono option=iter50k
+# python train.py dataset=zjumocap_377_mono option=iter50k
 
 ###################### CUSTOM SCRIPTS END ######################
 ################################################################

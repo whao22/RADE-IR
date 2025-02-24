@@ -3,6 +3,7 @@ defaults:
   - dataset: zjumocap_377_mono
   - pose_correction: direct
   - texture: shallow_mlp
+  - intrinsic: shallow_mlp
   - rigid: skinning_field
   - non_rigid: hashgrid
   - geometry: default
