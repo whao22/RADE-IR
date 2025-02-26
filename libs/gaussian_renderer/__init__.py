@@ -147,7 +147,7 @@ def render(data,
     _scales, opacity = pc.get_scaling_n_opacity_with_3D_filter
     
     if pipe.compute_cov3D_python:
-        cov3D_precomp, cov3D_precomp_mtx = pc.get_covariance(_scales, scaling_modifier, return_cov3D_act=True)
+        cov3D_precomp, cov3D_precomp_mtx = pc.get_covariance(_scales, scaling_modifier, return_cov3D_mtx=True)
     else:
         scales = pc.get_scaling_with_3D_filter
         rotations = pc.get_rotation
@@ -238,7 +238,7 @@ def render(data,
     ##################################################################################
     ################################## PBR Rendering #################################
     ##################################################################################
-    rendered_maps = [rendered_base_color,  rendered_metallic, rendered_roughness, rendered_normal, rendered_alpha, rendered_median_depth, rendered_visibility]
+    rendered_maps = [rendered_base_color,  rendered_metallic, rendered_roughness, rendered_normal2, rendered_alpha, rendered_median_depth, rendered_visibility]
     pbr_result = pbr_render(data, scene, rendered_maps, bg_color)
     
     rendered_pbr = pbr_result["render_rgb"].permute(2, 0, 1)  # [3, H, W]

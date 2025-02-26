@@ -3,7 +3,6 @@ defaults:
   - dataset: zjumocap_377_mono
   - pose_correction: direct
   - texture: shallow_mlp
-  - intrinsic: shallow_mlp
   - rigid: skinning_field
   - non_rigid: hashgrid
   - geometry: default
@@ -104,7 +103,7 @@ test_iterations: []
 test_interval: 2000
 save_iterations: [30000]
 seed: -1
-checkpoint_iterations: [10000, 20000, 30000, 40000, 49000]
+checkpoint_iterations: [2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000, 16000, 18000, 20000, 22000, 24000, 26000, 28000, 30000, 32000]
 start_checkpoint: null
 wandb_disable: false
 

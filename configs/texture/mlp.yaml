@@ -28,6 +28,7 @@ model:
       multires: 0
 
 opt:
+  intrinsic_lr: 1e-3
   texture_lr: 1e-3
   tex_latent_lr: 1e-3
   latent_weight_decay: 0.05

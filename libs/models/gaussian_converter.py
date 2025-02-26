@@ -4,8 +4,6 @@ import numpy as np
 from .deformer import get_deformer
 from .pose_correction import get_pose_correction
 from .texture import get_texture
-from .intrinsic import get_intrinsic
-
 class GaussianConverter(nn.Module):
     def __init__(self, cfg, metadata):
         super().__init__()
@@ -15,7 +13,6 @@ class GaussianConverter(nn.Module):
         self.pose_correction = get_pose_correction(cfg.model.pose_correction, metadata)
         self.deformer = get_deformer(cfg.model.deformer, metadata)
         self.texture = get_texture(cfg.model.texture, metadata)
-        self.intrinsic = get_intrinsic(cfg.model.intrinsic, metadata)
 
         self.optimizer, self.scheduler = None, None
         self.set_optimizer()
@@ -33,10 +30,6 @@ class GaussianConverter(nn.Module):
              'lr': self.cfg.opt.get('texture_lr', 0.)},
             {'params': [p for n, p in self.texture.named_parameters() if 'latent' in n],
              'lr': self.cfg.opt.get('tex_latent_lr', 0.), 'weight_decay': self.cfg.opt.get('latent_weight_decay', 0.05)},
-            {'params': [p for n, p in self.intrinsic.named_parameters() if 'latent' not in n],
-             'lr': self.cfg.opt.get('intrinsic_lr', 0.)},
-            {'params': [p for n, p in self.intrinsic.named_parameters() if 'latent' in n],
-             'lr': self.cfg.opt.get('intrinsic_latent_lr', 0.), 'weight_decay': self.cfg.opt.get('latent_weight_decay', 0.05)},
         ]
         self.optimizer = torch.optim.Adam(params=opt_params, lr=0.001, eps=1e-15)
 
@@ -59,8 +52,7 @@ class GaussianConverter(nn.Module):
         loss_reg.update(loss_reg_pose)
         loss_reg.update(loss_reg_deformer)
 
-        color_precompute = self.texture(deformed_gaussians, camera)
-        intrinsic_precompute = self.intrinsic(deformed_gaussians, camera)
+        color_precompute, intrinsic_precompute = self.texture(deformed_gaussians, camera)
 
         return deformed_gaussians, loss_reg, color_precompute, intrinsic_precompute
 

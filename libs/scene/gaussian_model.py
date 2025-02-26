@@ -50,11 +50,6 @@ class GaussianModel:
 
         self.rotation_activation = torch.nn.functional.normalize
 
-        if self.use_pbr:
-            self.base_color_activation = lambda x: torch.sigmoid(x) * 0.77 + 0.03
-            self.roughness_activation = lambda x: torch.sigmoid(x) * 0.9 + 0.09
-            self.metallic_activation = lambda x: torch.sigmoid(x) * 0.9 + 0.09
-
     def __init__(self, cfg, render_type='3dgs'):
         self.cfg = cfg
 
@@ -75,6 +70,8 @@ class GaussianModel:
         self._opacity = torch.empty(0)
         self.max_radii2D = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
+        self.xyz_gradient_accum_abs = torch.empty(0)
+        self.xyz_gradient_accum_abs_max = torch.empty(0)
         self.denom = torch.empty(0)
         self.optimizer = None
         self.percent_dense = 0
@@ -93,10 +90,12 @@ class GaussianModel:
         self.render_type = render_type
         self.use_pbr = render_type in ['neilf']
         if self.use_pbr:
-            self._base_color = torch.empty(0)
-            self._metallic = torch.empty(0)
-            self._roughness = torch.empty(0)
-
+            # self._base_color = torch.empty(0)
+            # self._metallic = torch.empty(0)
+            # self._roughness = torch.empty(0)            
+            self.intrinsic_dim = cfg.feature_dim
+            self._intrinsic = torch.empty(0)
+            
         self.setup_functions()
 
     def clone(self):
@@ -120,10 +119,13 @@ class GaussianModel:
                       "_opacity"]
 
         if self.use_pbr:
+            # parameters.extend([
+            #               "_base_color",
+            #               "_metallic",
+            #               "_roughness"])
             parameters.extend([
-                          "_base_color",
-                          "_metallic",
-                          "_roughness"])
+                "_intrinsic",
+            ])
         
         for parameter in parameters:
             setattr(cloned, parameter, getattr(self, parameter) + 0.)
@@ -150,6 +152,8 @@ class GaussianModel:
             self._opacity,
             self.max_radii2D,
             self.xyz_gradient_accum,
+            self.xyz_gradient_accum_abs,
+            self.xyz_gradient_accum_abs_max,
             self.denom,
             self.optimizer.state_dict(),
             self.spatial_lr_scale,
@@ -158,10 +162,13 @@ class GaussianModel:
             self._appearance_embeddings
         ]
         if self.use_pbr:
+            # captured_list.extend([
+            #     self._base_color,
+            #     self._metallic,
+            #     self._roughness,
+            # ])
             captured_list.extend([
-                self._base_color,
-                self._metallic,
-                self._roughness,
+                self._intrinsic,
             ])
         return captured_list
     
@@ -176,21 +183,26 @@ class GaussianModel:
         self._opacity,
         self.max_radii2D, 
         xyz_gradient_accum,
+        xyz_gradient_accum_abs,
+        xyz_gradient_accum_abs_max,
         denom,
         opt_dict, 
         self.spatial_lr_scale,
         self.filter_3D,
         app_dict,
-        _appearance_embeddings) = model_args[:15]
+        _appearance_embeddings) = model_args[:17]
 
-        if len(model_args) > 15 and self.use_pbr:
-            (self._base_color, 
-            self._roughness, 
-            self._metallic,) = model_args[15:]
+        if len(model_args) > 17 and self.use_pbr:
+            # (self._base_color, 
+            # self._roughness, 
+            # self._metallic,) = model_args[17:]
+            self._intrinsic = model_args[17]
 
         if is_training:
             self.training_setup(training_args)
             self.xyz_gradient_accum = xyz_gradient_accum
+            self.xyz_gradient_accum_abs = xyz_gradient_accum_abs
+            self.xyz_gradient_accum_abs_max = xyz_gradient_accum_abs_max
             self.denom = denom
             self.appearance_network.load_state_dict(app_dict)
             self._appearance_embeddings = _appearance_embeddings
@@ -216,9 +228,13 @@ class GaussianModel:
     
     ########## Deprecated ##########
     @torch.no_grad()
-    def get_normal_per_vertex(self, cov3D_precomp_act, view_transform, proj_transform):
+    def get_normal_per_vertex(self, cov3D_precomp_mtx, view_transform, proj_transform):
         # precompute q_hat for normal computation
+<<<<<<< HEAD
         q_hat = self.prefix_for_geometry(cov3D_precomp_act, view_transform, proj_transform) # [N, 1, 3]
+=======
+        q_hat = self.prefix_for_geometry(cov3D_precomp_mtx, view_transform, proj_transform)
+>>>>>>> [Added] Intrinsic feature in cnl space, intrinsic mlp for transform that to obs space.
         
         # TODO: 有bug, 需修改！
         # construct normal vectors, equation (10) in the paper # TODO: check the sign
@@ -283,27 +299,33 @@ class GaussianModel:
         scales = torch.sqrt(scales_after_square)
         return scales, opacity * coef[..., None]
     
-    @property
-    def get_base_color(self):
-        return self.base_color_activation(self._base_color)
+    # @property
+    # def get_base_color(self):
+    #     return self.base_color_activation(self._base_color)
     
-    @property
-    def get_roughness(self):
-        return self.roughness_activation(self._roughness)
+    # @property
+    # def get_roughness(self):
+    #     return self.roughness_activation(self._roughness)
     
-    @property
-    def get_metallic(self):
-        return self.metallic_activation(self._metallic)
+    # @property
+    # def get_metallic(self):
+    #     return self.metallic_activation(self._metallic)
 
+    # @property
+    # def get_brdf(self):
+    #     return torch.cat([self.get_base_color, self.get_roughness, self.get_metallic], dim=-1)
+    
     @property
-    def get_brdf(self):
-        return torch.cat([self.get_base_color, self.get_roughness, self.get_metallic], dim=-1)
+    def get_intrinsic(self):
+        return self._intrinsic
     
     @property
     def attribute_names(self):
         attribute_names = ['xyz', 'normal', 'features_dc', 'features_rest','scaling', 'rotation', 'opacity']
         if self.use_pbr:
-            attribute_names.extend(['base_color', 'roughness', 'metallic',])
+            # attribute_names.extend(['base_color', 'roughness', 'metallic',])
+            attribute_names.extend(['intrinsic'])
+            
         return attribute_names
     
     def get_by_names(self, names):
@@ -326,29 +348,29 @@ class GaussianModel:
     def get_apperance_embedding(self, idx):
         return self._appearance_embeddings[idx]
     
-    def get_covariance(self, scales = None, scaling_modifier = 1, return_cov3D_act=False):
+    def get_covariance(self, scales = None, scaling_modifier = 1, return_cov3D_mtx=False):
         if hasattr(self, 'rotation_precomp'):
             if scales is not None:
-                return self.covariance_activation(scales, scaling_modifier, self.rotation_precomp, return_cov3D_act)
+                return self.covariance_activation(scales, scaling_modifier, self.rotation_precomp, return_cov3D_mtx)
             else:
-                return self.covariance_activation(self.get_scaling, scaling_modifier, self.rotation_precomp, return_cov3D_act)
+                return self.covariance_activation(self.get_scaling, scaling_modifier, self.rotation_precomp, return_cov3D_mtx)
         else:
             if scales is not None:
-                return self.covariance_activation(scales, scaling_modifier, self._rotation, return_cov3D_act)
+                return self.covariance_activation(scales, scaling_modifier, self._rotation, return_cov3D_mtx)
             else:
-                return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation, return_cov3D_act)
+                return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation, return_cov3D_mtx)
 
-    def get_inverse_covariance(self, scales = None, scaling_modifier=1, return_cov3D_act=False):
+    def get_inverse_covariance(self, scales = None, scaling_modifier=1, return_cov3D_mtx=False):
         if hasattr(self, 'rotation_precomp'):
             if scales is not None:
-                return self.covariance_activation(1/scales, 1/scaling_modifier, self.rotation_precomp, return_cov3D_act)
+                return self.covariance_activation(1/scales, 1/scaling_modifier, self.rotation_precomp, return_cov3D_mtx)
             else:
-                return self.covariance_activation(1/self.get_scaling, 1/scaling_modifier, self.rotation_precomp, return_cov3D_act)
+                return self.covariance_activation(1/self.get_scaling, 1/scaling_modifier, self.rotation_precomp, return_cov3D_mtx)
         else:
             if scales is not None:
-                return self.covariance_activation(1/scales, 1/scaling_modifier, self._rotation, return_cov3D_act)
+                return self.covariance_activation(1/scales, 1/scaling_modifier, self._rotation, return_cov3D_mtx)
             else:
-                return self.covariance_activation(1/self.get_scaling, 1/scaling_modifier, self._rotation, return_cov3D_act)
+                return self.covariance_activation(1/self.get_scaling, 1/scaling_modifier, self._rotation, return_cov3D_mtx)
 
     @torch.no_grad()
     def reset_3D_filter(self):
@@ -515,13 +537,21 @@ class GaussianModel:
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
         if self.use_pbr:
+<<<<<<< HEAD
             base_color = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
             roughness = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
             metallic = torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
+=======
+            # base_color = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
+            # roughness = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda") * 0.5
+            # metallic = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda") * 0.5
+>>>>>>> [Added] Intrinsic feature in cnl space, intrinsic mlp for transform that to obs space.
 
-            self._base_color = nn.Parameter(base_color.requires_grad_(True))
-            self._roughness = nn.Parameter(roughness.requires_grad_(True))
-            self._metallic = nn.Parameter(metallic.requires_grad_(True))
+            # self._base_color = nn.Parameter(base_color.requires_grad_(True))
+            # self._roughness = nn.Parameter(roughness.requires_grad_(True))
+            # self._metallic = nn.Parameter(metallic.requires_grad_(True))
+            intrinsic = torch.ones((fused_point_cloud.shape[0], 1, self.intrinsic_dim), dtype=torch.float, device="cuda")
+            self._intrinsic = nn.Parameter(intrinsic.transpose(1, 2).contiguous().requires_grad_(True))
 
 
     def training_setup(self, training_args):
@@ -544,10 +574,13 @@ class GaussianModel:
         ]
 
         if self.use_pbr:
+            # l.extend([
+            #     {'params': [self._base_color], 'lr': training_args.base_color_lr, "name": "base_color"},
+            #     {'params': [self._roughness], 'lr': training_args.roughness_lr, "name": "roughness"},
+            #     {'params': [self._metallic], 'lr': training_args.metallic_lr, "name": "metallic"}
+            # ])
             l.extend([
-                {'params': [self._base_color], 'lr': training_args.base_color_lr, "name": "base_color"},
-                {'params': [self._roughness], 'lr': training_args.roughness_lr, "name": "roughness"},
-                {'params': [self._metallic], 'lr': training_args.metallic_lr, "name": "metallic"}
+                {'params': [self._intrinsic], 'lr': training_args.intrinsic_lr, "name": "intrinsic"},
             ])
         
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
@@ -580,15 +613,19 @@ class GaussianModel:
             l.append('filter_3D')
         
         if self.use_pbr:
-            for i in range(self._base_color.shape[1]):
-                l.append('base_color_{}'.format(i))
-            for i in range(self._base_color.shape[1]):
-                l.append('roughness_{}'.format(i))
-            for i in range(self._base_color.shape[1]):
-                l.append('metallic_{}'.format(i))
+            # for i in range(self._base_color.shape[1]):
+            #     l.append('base_color_{}'.format(i))
+            # for i in range(self._roughness.shape[1]):
+            #     l.append('roughness_{}'.format(i))
+            # for i in range(self._metallic.shape[1]):
+            #     l.append('metallic_{}'.format(i))
+            for i in range(self._intrinsic.shape[1]*self._intrinsic.shape[2]):
+                l.append('intrinsic_{}'.format(i))
+            
         return l
 
     def save_ply(self, path):
+        
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
         xyz = self._xyz.detach().cpu().numpy()
@@ -602,12 +639,15 @@ class GaussianModel:
 
         attributes_list = [xyz, normal, f_dc, f_rest, opacities, scale, rotation, filter_3D]
         if self.use_pbr:
+            # attributes_list.extend([
+            #     self._base_color.detach().cpu().numpy(),
+            #     self._roughness.detach().cpu().numpy(),
+            #     self._metallic.detach().cpu().numpy()
+            # ])
             attributes_list.extend([
-                self._base_color.detach().cpu().numpy(),
-                self._roughness.detach().cpu().numpy(),
-                self._metallic.detach().cpu().numpy()
+                self._intrinsic.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
             ])
-        
+
         dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes()]
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
@@ -816,22 +856,30 @@ class GaussianModel:
         # self.active_sh_degree = self.max_sh_degree
 
         if self.use_pbr:
-            # TODO:  complete the loading of PBR parameters
-            base_color_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("base_color")]
-            base_color_names = sorted(base_color_names, key=lambda x: int(x.split('_')[-1]))
-            base_color = np.zeros((xyz.shape[0], len(base_color_names)))
-            for idx, attr_name in enumerate(base_color_names):
-                base_color[:, idx] = np.asarray(plydata.elements[0][attr_name])
+            # # TODO:  complete the loading of PBR parameters
+            # base_color_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("base_color")]
+            # base_color_names = sorted(base_color_names, key=lambda x: int(x.split('_')[-1]))
+            # base_color = np.zeros((xyz.shape[0], len(base_color_names)))
+            # for idx, attr_name in enumerate(base_color_names):
+            #     base_color[:, idx] = np.asarray(plydata.elements[0][attr_name])
 
-            roughness = np.asarray(plydata.elements[0]["roughness"])[..., np.newaxis]
-            metallic = np.asarray(plydata.elements[0]["metallic"])[..., np.newaxis]
+            # roughness = np.asarray(plydata.elements[0]["roughness"])[..., np.newaxis]
+            # metallic = np.asarray(plydata.elements[0]["metallic"])[..., np.newaxis]
 
-            self._base_color = nn.Parameter(
-                torch.tensor(base_color, dtype=torch.float, device="cuda").requires_grad_(True))
-            self._roughness = nn.Parameter(
-                torch.tensor(roughness, dtype=torch.float, device="cuda").requires_grad_(True))
-            self._metallic = nn.Parameter(torch.tensor(metallic, dtype=torch.float, device="cuda").requires_grad_(True))
-
+            # self._base_color = nn.Parameter(
+            #     torch.tensor(base_color, dtype=torch.float, device="cuda").requires_grad_(True))
+            # self._roughness = nn.Parameter(
+            #     torch.tensor(roughness, dtype=torch.float, device="cuda").requires_grad_(True))
+            # self._metallic = nn.Parameter(torch.tensor(metallic, dtype=torch.float, device="cuda").requires_grad_(True))
+            
+            # TODO: check if the loading of PBR parameters is correct
+            intrinsic_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("intrinsic")]
+            intrinsic_names = sorted(intrinsic_names, key=lambda x: int(x.split('_')[-1]))
+            intrinsic = np.zeros((xyz.shape[0], len(intrinsic_names)))
+            for idx, attr_name in enumerate(intrinsic_names):
+                intrinsic[:, idx] = np.asarray(plydata.elements[0][attr_name])
+            self._intrinsic = nn.Parameter(torch.tensor(intrinsic, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
+            
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
@@ -887,9 +935,10 @@ class GaussianModel:
         self.max_radii2D = self.max_radii2D[valid_points_mask]
 
         if self.use_pbr:
-            self._base_color = optimizable_tensors["base_color"]
-            self._roughness = optimizable_tensors["roughness"]
-            self._metallic = optimizable_tensors["metallic"]
+            # self._base_color = optimizable_tensors["base_color"]
+            # self._roughness = optimizable_tensors["roughness"]
+            # self._metallic = optimizable_tensors["metallic"]
+            self._intrinsic = optimizable_tensors["intrinsic"]
 
     def cat_tensors_to_optimizer(self, tensors_dict):
         optimizable_tensors = {}
@@ -916,7 +965,7 @@ class GaussianModel:
         return optimizable_tensors
 
     def densification_postfix(self, new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, 
-                              new_rotation, new_base_color=None, new_roughness=None, new_metallic=None):
+                              new_rotation, new_intrinsic=None):
         d = {"xyz": new_xyz,
             "f_dc": new_features_dc,
             "f_rest": new_features_rest,
@@ -926,9 +975,7 @@ class GaussianModel:
         
         if self.use_pbr:
             d.update({
-                "base_color": new_base_color,
-                "roughness": new_roughness,
-                "metallic": new_metallic
+                "intrinsic": new_intrinsic
             })
         extension_num = new_xyz.shape[0]
         optimizable_tensors = self.cat_tensors_to_optimizer(d)
@@ -946,10 +993,10 @@ class GaussianModel:
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
         if self.use_pbr:
-            self._base_color = optimizable_tensors["base_color"]
-            self._roughness = optimizable_tensors["roughness"]
-            self._metallic = optimizable_tensors["metallic"]
-
+            # self._base_color = optimizable_tensors["base_color"]
+            # self._roughness = optimizable_tensors["roughness"]
+            # self._metallic = optimizable_tensors["metallic"]
+            self._intrinsic = optimizable_tensors["intrinsic"]
 
     def densify_and_split(self, grads, grad_threshold, grads_abs, grad_abs_threshold, scene_extent, N=2):
         n_init_points = self.get_xyz.shape[0]
@@ -979,13 +1026,17 @@ class GaussianModel:
 
         args = [new_xyz, new_features_dc, new_features_rest, new_opacity, new_scaling, new_rotation]
         if self.use_pbr:
-            new_base_color = self._base_color[selected_pts_mask].repeat(N, 1)
-            new_roughness = self._roughness[selected_pts_mask].repeat(N, 1)
-            new_metallic = self._metallic[selected_pts_mask].repeat(N, 1)
+            # new_base_color = self._base_color[selected_pts_mask].repeat(N, 1)
+            # new_roughness = self._roughness[selected_pts_mask].repeat(N, 1)
+            # new_metallic = self._metallic[selected_pts_mask].repeat(N, 1)
+            # args.extend([
+            #     new_base_color,
+            #     new_roughness,
+            #     new_metallic
+            # ])
+            new_intrinsic = self._intrinsic[selected_pts_mask].repeat(N, 1, 1)
             args.extend([
-                new_base_color,
-                new_roughness,
-                new_metallic
+                new_intrinsic
             ])
 
         self.densification_postfix(*args)
@@ -1017,14 +1068,18 @@ class GaussianModel:
         args = [new_xyz, new_features_dc, new_features_rest, new_opacities,
                 new_scaling, new_rotation]
         if self.use_pbr:
-            new_base_color = self._base_color[selected_pts_mask]
-            new_roughness = self._roughness[selected_pts_mask]
-            new_metallic = self._metallic[selected_pts_mask]
+            # new_base_color = self._base_color[selected_pts_mask]
+            # new_roughness = self._roughness[selected_pts_mask]
+            # new_metallic = self._metallic[selected_pts_mask]
 
+            # args.extend([
+            #     new_base_color,
+            #     new_roughness,
+            #     new_metallic
+            # ])
+            new_intrinsic = self._intrinsic[selected_pts_mask]
             args.extend([
-                new_base_color,
-                new_roughness,
-                new_metallic
+                new_intrinsic
             ])
         
         self.densification_postfix(*args)
@@ -1068,3 +1123,4 @@ class GaussianModel:
         self.xyz_gradient_accum_abs[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,2:], dim=-1, keepdim=True)
         self.xyz_gradient_accum_abs_max[update_filter] = torch.max(self.xyz_gradient_accum_abs_max[update_filter], torch.norm(viewspace_point_tensor.grad[update_filter,2:], dim=-1, keepdim=True))
         self.denom[update_filter] += 1
+        
