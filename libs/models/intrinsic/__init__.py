@@ -1,1 +1,0 @@
-from .intrinsic import get_intrinsic

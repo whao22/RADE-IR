@@ -69,9 +69,12 @@ class ColorMLP(ColorPrecompute):
         d_out = 3
         self.mlp = VanillaCondMLP(d_in, 0, d_out, cfg.mlp)
         self.color_activation = nn.Sigmoid()
-
-    def compose_input(self, gaussians, camera):
-        features = gaussians.get_features.squeeze(-1)
+        
+        d_out2 = 5
+        self.mlp2 = VanillaCondMLP(d_in, 0, d_out2, cfg.mlp)
+        self.intrinsic_activation = nn.Sigmoid()
+        
+    def compose_input(self, gaussians, camera, features):
         n_points = features.shape[0]
         if self.use_xyz:
             aabb = self.metadata["aabb"]
@@ -118,10 +121,19 @@ class ColorMLP(ColorPrecompute):
 
 
     def forward(self, gaussians, camera):
-        inp = self.compose_input(gaussians, camera)
-        output = self.mlp(inp)
+        # feature
+        features = gaussians.get_features.squeeze(-1) # [num_gaussians, feature_dim]
+        features_inp = self.compose_input(gaussians, camera, features)
+        output = self.mlp(features_inp)
         color = self.color_activation(output)
-        return color
+        
+        # intrinsic
+        intrinsic = gaussians.get_intrinsic.squeeze(-1) # [num_gaussians, intrinsic_dim]
+        intrinsic_inp = torch.cat([intrinsic, features_inp[:, features.shape[-1]:]], dim=1)
+        output2 = self.mlp2(intrinsic_inp)
+        intrinsic = self.intrinsic_activation(output2)
+        
+        return color, intrinsic
 
 
 def get_texture(cfg, metadata):
