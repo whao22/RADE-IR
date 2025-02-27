@@ -230,13 +230,9 @@ class GaussianModel:
     @torch.no_grad()
     def get_normal_per_vertex(self, cov3D_precomp_mtx, view_transform, proj_transform):
         # precompute q_hat for normal computation
-<<<<<<< HEAD
-        q_hat = self.prefix_for_geometry(cov3D_precomp_act, view_transform, proj_transform) # [N, 1, 3]
-=======
         q_hat = self.prefix_for_geometry(cov3D_precomp_mtx, view_transform, proj_transform)
->>>>>>> [Added] Intrinsic feature in cnl space, intrinsic mlp for transform that to obs space.
         
-        # TODO: 有bug, 需修改！
+        # [TODO: 有bug, 需修改] -> fixed.
         # construct normal vectors, equation (10) in the paper # TODO: check the sign
         q_one =  torch.cat([q_hat[..., :2], torch.ones_like(q_hat[..., 2:])], dim=-1) # [N, 1, 3]
         n_pre = -torch.permute(q_one, [0, 2, 1]) # [N, 1, 3]
@@ -537,15 +533,9 @@ class GaussianModel:
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
         if self.use_pbr:
-<<<<<<< HEAD
-            base_color = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
-            roughness = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
-            metallic = torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
-=======
             # base_color = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
             # roughness = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda") * 0.5
             # metallic = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda") * 0.5
->>>>>>> [Added] Intrinsic feature in cnl space, intrinsic mlp for transform that to obs space.
 
             # self._base_color = nn.Parameter(base_color.requires_grad_(True))
             # self._roughness = nn.Parameter(roughness.requires_grad_(True))
