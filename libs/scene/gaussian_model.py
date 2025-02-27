@@ -166,7 +166,7 @@ class GaussianModel:
         return captured_list
     
     def restore(self, model_args, training_args,
-                is_training=False, restore_optimizer=True):
+                is_training=True, restore_optimizer=True):
         (self.active_sh_degree, 
         self._xyz,
         self._features_dc, 
@@ -200,9 +200,13 @@ class GaussianModel:
                 except:
                     raise ValueError("Cannot restore optimizer state dict")
 
+    ########## Deprecated ##########
+    @torch.no_grad()
     def prefix_for_geometry(self, cov3D_precomp_act, view_transform, proj_transform):
-        full_proj = (proj_transform @ view_transform)[:3,:3]
-        cov_2d = full_proj @ cov3D_precomp_act @ full_proj.T + torch.eye(3).to(cov3D_precomp_act) * 1e-8 # [N_pts, 3, 3]
+        full_proj = proj_transform @ view_transform
+        cov3D_precomp_act_homo = torch.eye(4).unsqueeze_(0).repeat([cov3D_precomp_act.shape[0], 1, 1]).to(cov3D_precomp_act)
+        cov3D_precomp_act_homo[:, :3, :3] = cov3D_precomp_act
+        cov_2d = (full_proj @ cov3D_precomp_act_homo @ full_proj.T)[:, :3, :3] # [N_pts, 3, 3]
 
         v_pre = torch.tensor([0, 0, 1]).reshape(3,1).to(cov_2d) # [3, 1]
         v_pre_T_mut_cov_2d = v_pre.T @ cov_2d.inverse()
@@ -210,15 +214,16 @@ class GaussianModel:
 
         return q_hat
     
+    ########## Deprecated ##########
     @torch.no_grad()
     def get_normal_per_vertex(self, cov3D_precomp_act, view_transform, proj_transform):
         # precompute q_hat for normal computation
-        q_hat = self.prefix_for_geometry(cov3D_precomp_act, view_transform, proj_transform)
+        q_hat = self.prefix_for_geometry(cov3D_precomp_act, view_transform, proj_transform) # [N, 1, 3]
         
         # construct normal vectors, equation (10) in the paper # TODO: check the sign
-        q_one = torch.cat([q_hat[:, :2], torch.zeros_like(q_hat[:, 2:])], dim=1) # [1, 3]
-        n_pre = -torch.permute(q_one, [0, 2, 1])
-        normal_cam = proj_transform[:3, :3].T @ n_pre # [3, 1]
+        q_one =  torch.cat([q_hat[..., :2], torch.ones_like(q_hat[..., 2:])], dim=-1) # [N, 1, 3]
+        n_pre = -torch.permute(q_one, [0, 2, 1]) # [N, 1, 3]
+        normal_cam = proj_transform[:3, :3].T @ n_pre # [N, 3, 1]
         return torch.nn.functional.normalize(normal_cam.squeeze(-1))
     
     @property
@@ -510,8 +515,8 @@ class GaussianModel:
 
         if self.use_pbr:
             base_color = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
-            roughness = torch.ones((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
-            metallic = torch.zeros((fused_point_cloud.shape[0], 3), dtype=torch.float, device="cuda")
+            roughness = torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
+            metallic = torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
 
             self._base_color = nn.Parameter(base_color.requires_grad_(True))
             self._roughness = nn.Parameter(roughness.requires_grad_(True))

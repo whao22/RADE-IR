@@ -112,7 +112,7 @@ def render(data,
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     ## GEOMETRY optimization, rasterize [rendered_image, rendered_alpha, rendered_normal]
     (rendered_image, radii, rendered_expected_coord, rendered_median_coord, rendered_expected_depth, 
-     rendered_median_depth, rendered_alpha, rendered_normal) = rade_rasterizer(
+     rendered_median_depth, rendered_alpha, rendered_normal, normals) = rade_rasterizer(
         means3D = means3D,
         means2D = means2D,
         shs = shs,
@@ -138,13 +138,13 @@ def render(data,
     ##################################################################################
     ############################ NEILF Optimization START ############################
     ##################################################################################
-    normal = pc.get_normal_per_vertex(cov3D_precomp_act, data.world_view_transform, data.projection_matrix)
+    # normal = pc.get_normal_per_vertex(cov3D_precomp_act, data.world_view_transform, data.projection_matrix)
     base_color = pc.get_base_color
     roughness = pc.get_roughness
     metallic = pc.get_metallic
-    visibility = pc.get_visibility(scene.sample_num, normal, scales=_scales, opacity=opacity)
+    visibility = pc.get_visibility(scene.sample_num, normals, scales=_scales, opacity=opacity)
 
-    features = torch.cat([normal, base_color, roughness, metallic, visibility.mean(-2)], dim=-1)
+    features = torch.cat([normals, base_color, roughness, metallic, visibility.mean(-2)], dim=-1)
     
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     (num_rendered, num_contrib, rendered_image2, rendered_opacity2, rendered_depth,
@@ -159,14 +159,14 @@ def render(data,
         cov3D_precomp=cov3D_precomp.detach(),
         features=features,
     )
-    rendered_normal, rendered_base_color, rendered_roughness, rendered_metallic, \
-        rendered_visibility = rendered_feature.split([3, 3, 3, 3, 1], dim=0)
+    rendered_normal2, rendered_base_color, rendered_roughness, rendered_metallic, \
+        rendered_visibility = rendered_feature.split([3, 3, 1, 1, 1], dim=0)
     
     # formulate roughness
     rmax, rmin = 1.0, 0.04
     rendered_roughness = rendered_roughness * (rmax - rmin) + rmin
-    rendered_roughness = rendered_roughness.mean(0, keepdim=True)
-    rendered_metallic = rendered_metallic.mean(0, keepdim=True)
+    # rendered_roughness = rendered_roughness.mean(0, keepdim=True)
+    # rendered_metallic = rendered_metallic.mean(0, keepdim=True)
 
     # PBR rendering
     rays = scene.get_canonical_rays(data)
@@ -212,7 +212,7 @@ def render(data,
     results.update({
         "rendered_pbr": rendered_pbr,
         "rendered_image2": rendered_image2,
-        "rendered_normal2": rendered_normal,
+        "rendered_normal2": rendered_normal2,
         "rendered_pseudo_normal": rendered_pseudo_normal,
         "albedo_map": rendered_base_color, 
         "roughness_map": rendered_roughness, 

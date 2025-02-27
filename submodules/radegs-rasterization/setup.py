@@ -16,6 +16,7 @@ os.path.dirname(os.path.abspath(__file__))
 
 setup(
     name="radegs_rasterization",
+    version="0.0.1",
     packages=['radegs_rasterization'],
     ext_modules=[
         CUDAExtension(

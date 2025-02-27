@@ -279,6 +279,7 @@ int CudaRasterizer::Rasterizer::forward(
 	float* out_mdepth,
 	float* out_alpha,
 	float* out_normal,
+	float* output_normals,
 	int* radii,
 	bool require_coord,
 	bool require_depth,
@@ -420,7 +421,9 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.normal_length,
 		require_coord,
 		require_depth), debug);
-
+	
+	// Copy normals back to CPU
+	CHECK_CUDA(cudaMemcpy(output_normals, geomState.normals, P * 3 * sizeof(float), cudaMemcpyDeviceToHost), debug);
 	return num_rendered;
 }
 

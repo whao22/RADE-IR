@@ -56,6 +56,7 @@ namespace CudaRasterizer
 			float* out_mdepth,
 			float* out_alpha,
 			float* out_normal,
+			float* output_normals,
 			int* radii = nullptr,
 			bool require_coord = true,
 			bool require_depth = true,
