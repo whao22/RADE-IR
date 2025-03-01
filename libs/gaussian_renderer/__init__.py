@@ -17,6 +17,54 @@ from libs.scene import Scene
 from radegs_rasterization import GaussianRasterizationSettings as DeRasterSettings, GaussianRasterizer as DeRasterizer
 from r3dg_rasterization import GaussianRasterizationSettings as R3DRasterSettings, GaussianRasterizer as R3DRasterizer
 
+def pbr_render(scene, data, rendered_maps, bg_color):
+    rendered_base_color, rendered_metallic, rendered_roughness, rendered_normal, rendered_alpha, rendered_median_depth, rendered_visibility = rendered_maps
+    
+    # formulate roughness
+    rmax, rmin = 1.0, 0.04
+    rendered_roughness = rendered_roughness * (rmax - rmin) + rmin
+    # rendered_roughness = rendered_roughness.mean(0, keepdim=True)
+    # rendered_metallic = rendered_metallic.mean(0, keepdim=True)
+
+    # PBR rendering
+    rays = scene.get_canonical_rays(data)
+    c2w = torch.inverse(data.world_view_transform.T)  # [4, 4]
+    view_dirs = -(
+        (F.normalize(rays[:, None, :], p=2, dim=-1) * c2w[None, :3, :3])  # [HW, 3, 3]
+        .sum(dim=-1)
+        .reshape(data.image_height, data.image_width, 3)
+    )  # [H, W, 3]
+    points = (
+        (-view_dirs.reshape(-1, 3) * rendered_median_depth.reshape(-1, 1) + c2w[:3, 3])
+        .clamp(min=-scene.cfg.opt.bound, max=scene.cfg.opt.bound)
+        .contiguous()
+    )  # [HW, 3]
+    
+    irradiance_map = scene.irradiance_volumes.query_irradiance(
+        points=points.reshape(-1, 3).contiguous(),
+        normals=rendered_normal.permute(1, 2, 0).reshape(-1, 3).contiguous(),
+    ).reshape(data.image_height, data.image_width, -1)
+    
+    scene.cubemap.build_mips() # build mip for environment light
+    normal_mask = (rendered_alpha != 0).all(0, keepdim=True)
+    pbr_result = pbr_shading(
+        view_dirs=view_dirs,
+        light=scene.cubemap,
+        brdf_lut=scene.brdf_lut,
+        normals=rendered_normal.permute(1, 2, 0).detach(),  # [H, W, 3]
+        mask=normal_mask.permute(1, 2, 0),  # [H, W, 1]
+        albedo=rendered_base_color.permute(1, 2, 0),  # [H, W, 3]
+        roughness=rendered_roughness.permute(1, 2, 0),  # [H, W, 1]
+        metallic=rendered_metallic.permute(1, 2, 0),  # [H, W, 1]
+        occlusion=rendered_visibility.permute(1, 2, 0),  # [H, W, 1]
+        irradiance=irradiance_map,
+        tone=scene.cfg.opt.tone,
+        gamma=scene.cfg.opt.gamma,
+        background=bg_color,
+    )
+
+    return pbr_result
+
 def render(data,
            iteration,
            scene: Scene,
@@ -34,6 +82,10 @@ def render(data,
     Background tensor (bg_color) must be on GPU!
     """
     pc, loss_reg, colors_precomp = scene.convert_gaussians(data, iteration, compute_loss)
+    
+    results = {
+        "deformed_gaussian": pc,
+    }
     
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
     screenspace_points = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
@@ -122,8 +174,7 @@ def render(data,
         rotations = rotations,
         cov3D_precomp = cov3D_precomp)
     
-    results = {"deformed_gaussian": pc,
-            "render": rendered_image,
+    results.update({"render": rendered_image,
             "opacity_render": rendered_alpha,
             "rendered_normal": rendered_normal,
             "expected_coord": rendered_expected_coord,
@@ -133,7 +184,7 @@ def render(data,
             "viewspace_points": screenspace_points,
             "visibility_filter" : radii > 0,
             "radii": radii,
-            "loss_reg": loss_reg,}
+            "loss_reg": loss_reg,})
     
     ##################################################################################
     ############################ NEILF Optimization START ############################
@@ -162,52 +213,16 @@ def render(data,
     rendered_normal2, rendered_base_color, rendered_roughness, rendered_metallic, \
         rendered_visibility = rendered_feature.split([3, 3, 1, 1, 1], dim=0)
     
-    # formulate roughness
-    rmax, rmin = 1.0, 0.04
-    rendered_roughness = rendered_roughness * (rmax - rmin) + rmin
-    # rendered_roughness = rendered_roughness.mean(0, keepdim=True)
-    # rendered_metallic = rendered_metallic.mean(0, keepdim=True)
-
-    # PBR rendering
-    rays = scene.get_canonical_rays(data)
-    c2w = torch.inverse(data.world_view_transform.T)  # [4, 4]
-    view_dirs = -(
-        (F.normalize(rays[:, None, :], p=2, dim=-1) * c2w[None, :3, :3])  # [HW, 3, 3]
-        .sum(dim=-1)
-        .reshape(data.image_height, data.image_width, 3)
-    )  # [H, W, 3]
-    points = (
-        (-view_dirs.reshape(-1, 3) * rendered_median_depth.reshape(-1, 1) + c2w[:3, 3])
-        .clamp(min=-scene.cfg.opt.bound, max=scene.cfg.opt.bound)
-        .contiguous()
-    )  # [HW, 3]
     
-    irradiance_map = scene.irradiance_volumes.query_irradiance(
-        points=points.reshape(-1, 3).contiguous(),
-        normals=rendered_normal.permute(1, 2, 0).reshape(-1, 3).contiguous(),
-    ).reshape(data.image_height, data.image_width, -1)
+    ##################################################################################
+    ############################## PBR Rendering START ###############################
+    ##################################################################################
+    rendered_maps = [rendered_base_color,  rendered_metallic, rendered_roughness, rendered_normal2, rendered_alpha, rendered_median_depth, rendered_visibility]
+    pbr_result = pbr_render(scene, data, rendered_maps, bg_color)
     
-    scene.cubemap.build_mips() # build mip for environment light
-    normal_mask = (rendered_alpha != 0).all(0, keepdim=True)
-    pbr_result = pbr_shading(
-        view_dirs=view_dirs,
-        light=scene.cubemap,
-        brdf_lut=scene.brdf_lut,
-        normals=rendered_normal.permute(1, 2, 0).detach(),  # [H, W, 3]
-        mask=normal_mask.permute(1, 2, 0),  # [H, W, 1]
-        albedo=rendered_base_color.permute(1, 2, 0),  # [H, W, 3]
-        roughness=rendered_roughness.permute(1, 2, 0),  # [H, W, 1]
-        metallic=rendered_metallic.permute(1, 2, 0) if metallic is not None else None,  # [H, W, 1]
-        occlusion=rendered_visibility.permute(1, 2, 0),  # [H, W, 1]
-        irradiance=irradiance_map,
-        tone=scene.cfg.opt.tone,
-        gamma=scene.cfg.opt.gamma,
-        background=bg_color,
-    )
     rendered_pbr = pbr_result["render_rgb"].permute(2, 0, 1)  # [3, H, W]
     rendered_diffuse = pbr_result["diffuse_rgb"].permute(2, 0, 1)  # [3, H, W]
     rendered_specular = pbr_result["specular_rgb"].permute(2, 0, 1)  # [3, H, W]
-    
 
     results.update({
         "rendered_pbr": rendered_pbr,
