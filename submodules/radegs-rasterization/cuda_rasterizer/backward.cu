@@ -634,7 +634,7 @@ __global__ void preprocessCUDA(
 }
 
 // Backward version of the rendering procedure.
-template <uint32_t C, bool COORD = true, bool DEPTH = true, bool NORMAL = true>
+template <uint32_t C, uint32_t S, bool COORD = true, bool DEPTH = true, bool NORMAL = true>
 __global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
 renderCUDA(
 	const uint2* __restrict__ ranges,
@@ -645,6 +645,7 @@ renderCUDA(
 	const float2* __restrict__ points_xy_image,
 	const float4* __restrict__ conic_opacity,
 	const float* __restrict__ colors,
+	const float* __restrict__ intrinsics,
 	const float* __restrict__ depths,
 	const float* __restrict__ ts,
 	const float* __restrict__ camera_planes,
@@ -656,6 +657,7 @@ renderCUDA(
 	const float* __restrict__ normal_length,
 	const uint32_t* __restrict__ n_contrib,
 	const float* __restrict__ dL_dpixels,
+	const float* __restrict__ dL_dpixels_intrinsics,
 	const float* __restrict__ dL_dpixel_coords,
 	const float* __restrict__ dL_dpixel_mcoords,
 	const float* __restrict__ dL_dpixel_depths,
@@ -670,6 +672,7 @@ renderCUDA(
 	float4* __restrict__ dL_dconic2D,
 	float* __restrict__ dL_dopacity,
 	float* __restrict__ dL_dcolors,
+	float* __restrict__ dL_dintrinsics,
 	float* __restrict__ dL_dts,
 	float* __restrict__ dL_dcamera_planes,
 	float2* __restrict__ dL_dray_planes,
@@ -701,6 +704,7 @@ renderCUDA(
 	__shared__ float2 collected_xy[BLOCK_SIZE];
 	__shared__ float4 collected_conic_opacity[BLOCK_SIZE];
 	__shared__ float collected_colors[C * BLOCK_SIZE];
+	__shared__ float collected_intrinsics[S * BLOCK_SIZE];
 	__shared__ float collected_camera_planes[6 * BLOCK_SIZE];
 	__shared__ float collected_mean3d[3 * BLOCK_SIZE];
 	__shared__ float collected_normals[3 * BLOCK_SIZE];
@@ -723,7 +727,9 @@ renderCUDA(
 	const int max_contributor = inside ? n_contrib[pix_id + H * W] : 0;
 
 	float accum_rec[C] = { 0 };
+	float accum_rec_intrinsics[S] = { 0 };
 	float dL_dpixel[C];
+	float dL_dpixel_intrinsics[S];
 	float accum_coord_rec[3] = {0};
 	float dL_dpixel_coord[3];
 	float accum_t_rec = 0;
@@ -738,6 +744,8 @@ renderCUDA(
 	if (inside) {
 		for (int i = 0; i < C; i++)
 			dL_dpixel[i] = dL_dpixels[i * H * W + pix_id];
+		for (int i = 0; i < S; i++)
+			dL_dpixel_intrinsics[i] = dL_dpixels_intrinsics[i * H * W + pix_id];
 		dL_dalpha = dL_dalphas[pix_id];
 
 		if constexpr (GEO)
@@ -788,6 +796,7 @@ renderCUDA(
 
 	float last_alpha = 0;
 	float last_color[C] = { 0 };
+	float last_intrinsics[S] = { 0 };
 	float last_coord[3] = { 0 };
 	float last_t = 0;
 	float last_dL_dw = 0;
@@ -797,6 +806,7 @@ renderCUDA(
 	// screen-space viewport corrdinates (-1 to 1)
 	const float ddelx_dx = 0.5 * W;
 	const float ddely_dy = 0.5 * H;
+
 
 	// Traverse all Gaussians
 	for (int i = 0; i < rounds; i++, toDo -= BLOCK_SIZE)
@@ -813,6 +823,9 @@ renderCUDA(
 			collected_conic_opacity[block.thread_rank()] = conic_opacity[coll_id];
 			for (int i = 0; i < C; i++)
 				collected_colors[i * BLOCK_SIZE + block.thread_rank()] = colors[coll_id * C + i];
+			for (int i = 0; i < S; i++)
+				collected_intrinsics[i * BLOCK_SIZE + block.thread_rank()] = intrinsics[coll_id * S + i];
+
 			if constexpr (COORD)
 			{
 				for(int ch = 0; ch < 6; ch++)
@@ -883,6 +896,21 @@ renderCUDA(
 				// many that were affected by this Gaussian.
 				atomicAdd(&(dL_dcolors[global_id * C + ch]), dchannel_dcolor * dL_dchannel);
 			}
+
+			// for feature
+            for (int ch = 0; ch < S; ch++)
+            {
+                const float feature = collected_intrinsics[ch * BLOCK_SIZE + j];
+                // const float feature = features[collected_id[j] * S + ch];
+                accum_rec_intrinsics[ch] = last_alpha * last_intrinsics[ch] + (1.f - last_alpha) * accum_rec_intrinsics[ch];
+                last_intrinsics[ch] = feature;
+                const float dL_dchannel_f = dL_dpixel_intrinsics[ch];
+				// if (backward_geometry)
+                // {
+                //     dL_dalpha += (feature - accum_rec_intrinsics[ch]) * dL_dchannel_f;
+                // }
+                atomicAdd(&(dL_dintrinsics[global_id * S + ch]), dchannel_dcolor * dL_dchannel_f);
+            }
 			
 			float dL_dcoords[3];
 			float dL_dt;
@@ -1114,6 +1142,7 @@ void BACKWARD::render(
 	const float2* means2D,
 	const float4* conic_opacity,
 	const float* colors,
+	const float* intrinsics,
 	const float* depths,
 	const float* ts,
 	const float* camera_planes,
@@ -1125,6 +1154,7 @@ void BACKWARD::render(
 	const float* normal_length,
 	const uint32_t* n_contrib,
 	const float* dL_dpixels,
+	const float* dL_dpixels_intrinsics,
 	const float* dL_dpixel_coords,
 	const float* dL_dpixel_mcoords,
 	const float* dL_dpixel_depth,
@@ -1139,6 +1169,7 @@ void BACKWARD::render(
 	float4* dL_dconic2D,
 	float* dL_dopacity,
 	float* dL_dcolors,
+	float* dL_dintrinsics,
 	float* dL_dts,
 	float* dL_dcamera_planes,
 	float2* dL_dray_planes,
@@ -1147,13 +1178,13 @@ void BACKWARD::render(
 	bool require_depth)
 {
 #define RENDER_CUDA_CALL(template_coord, template_depth, template_normal) \
-    renderCUDA<NUM_CHANNELS, template_coord, template_depth, template_normal> <<<grid, block>>> ( \
-        ranges, point_list, W, H, bg_color, view_points, means2D, conic_opacity, colors, \
+    renderCUDA<NUM_CHANNELS, NUM_CHANNELS_INTRINSICS, template_coord, template_depth, template_normal> <<<grid, block>>> ( \
+        ranges, point_list, W, H, bg_color, view_points, means2D, conic_opacity, colors, intrinsics, \
         depths, ts, camera_planes, ray_planes, alphas, normals, \
 		accum_coord, accum_depth, normal_length, \
-        n_contrib, dL_dpixels, dL_dpixel_coords, dL_dpixel_mcoords, dL_dpixel_depth, \
+        n_contrib, dL_dpixels, dL_dpixels_intrinsics, dL_dpixel_coords, dL_dpixel_mcoords, dL_dpixel_depth, \
         dL_dpixel_mdepth, dL_dalphas, dL_dpixel_normals, normalmap, \
-        focal_x, focal_y, dL_dmean3D, dL_dmean2D, dL_dconic2D, dL_dopacity, dL_dcolors, \
+        focal_x, focal_y, dL_dmean3D, dL_dmean2D, dL_dconic2D, dL_dopacity, dL_dcolors, dL_dintrinsics, \
         dL_dts, dL_dcamera_planes, dL_dray_planes, dL_dnormals)
 
 	if (require_coord && require_depth)

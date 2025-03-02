@@ -425,7 +425,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 // Main rasterization method. Collaboratively works on one tile per
 // block, each thread treats one pixel. Alternates between fetching 
 // and rasterizing data.
-template <uint32_t CHANNELS, bool COORD, bool DEPTH, bool NORMAL>
+template <uint32_t CHANNELS, uint32_t S, bool COORD, bool DEPTH, bool NORMAL>
 __global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
 renderCUDA(
 	const uint2* __restrict__ ranges,
@@ -434,6 +434,7 @@ renderCUDA(
 	const float* __restrict__ view_points,
 	const float2* __restrict__ points_xy_image,
 	const float* __restrict__ features,
+	const float* __restrict__ intrinsics,
 	const float* __restrict__ ts,
 	const float* __restrict__ camera_planes,
 	const float2* __restrict__ ray_planes,
@@ -445,6 +446,7 @@ renderCUDA(
 	uint32_t* __restrict__ n_contrib,
 	const float* __restrict__ bg_color,
 	float* __restrict__ out_color,
+	float* __restrict__ out_intrinsics,
 	float* __restrict__ out_coord,
 	float* __restrict__ out_mcoord,
 	float* __restrict__ out_normal,
@@ -482,6 +484,7 @@ renderCUDA(
 	__shared__ int collected_id[BLOCK_SIZE];
 	__shared__ float2 collected_xy[BLOCK_SIZE];
 	__shared__ float collected_feature[BLOCK_SIZE * CHANNELS];
+	__shared__ float collected_intrinsics[BLOCK_SIZE * S];
 	__shared__ float collected_camera_plane[BLOCK_SIZE * 6];
 	__shared__ float collected_mean3d[BLOCK_SIZE * 3];
 	__shared__ float4 collected_conic_opacity[BLOCK_SIZE];
@@ -494,7 +497,7 @@ renderCUDA(
 	uint32_t contributor = 0;
 	uint32_t last_contributor = 0;
 	uint32_t max_contributor = -1;
-	float C[CHANNELS] = { 0 };
+	float C[CHANNELS] = { 0 },  F[S] = { 0 };
 	float weight = 0;
 	float Coord[3] = { 0 };
 	float mCoord[3] = { 0 };
@@ -522,6 +525,9 @@ renderCUDA(
 			collected_conic_opacity[block.thread_rank()] = conic_opacity[coll_id];
 			for(int ch = 0; ch < CHANNELS; ch++)
 				collected_feature[ch * BLOCK_SIZE + block.thread_rank()] = features[coll_id * CHANNELS + ch];
+			for(int ch = 0; ch < S; ch++)
+				collected_intrinsics[ch * BLOCK_SIZE + block.thread_rank()] = features[coll_id * S + ch];
+			
 			if constexpr (COORD)
 			{
 				for(int ch = 0; ch < 6; ch++)
@@ -576,6 +582,9 @@ renderCUDA(
 			// Eq. (3) from 3D Gaussian splatting paper.
 			for (int ch = 0; ch < CHANNELS; ch++)
 				C[ch] += collected_feature[j + BLOCK_SIZE * ch] * aT;
+			
+			for (int ch = 0; ch < S; ch++)
+				F[ch] += collected_intrinsics[j + BLOCK_SIZE * ch] * aT;
 
 			bool before_median = T > 0.5;
 			if constexpr (COORD)
@@ -634,6 +643,8 @@ renderCUDA(
 		n_contrib[pix_id + H * W] = max_contributor;
 		for (int ch = 0; ch < CHANNELS; ch++)
 			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
+		for (int ch=0; ch < S; ch++)
+			out_intrinsics[ch * H * W + pix_id] = F[ch];
 		out_alpha[pix_id] = weight; //1 - T;
 
 		if constexpr (COORD)
@@ -701,6 +712,7 @@ void FORWARD::render(
 	const float* view_points,
 	const float2* means2D,
 	const float* colors,
+	const float* intrinsics,
 	const float* ts,
 	const float* camera_planes,
 	const float2* ray_planes,
@@ -711,6 +723,7 @@ void FORWARD::render(
 	uint32_t* n_contrib,
 	const float* bg_color,
 	float* out_color,
+	float* out_intrinsics,
 	float* out_coord,
 	float* out_mcoord,
 	float* out_normal,
@@ -723,9 +736,9 @@ void FORWARD::render(
 	bool require_depth)
 {
 #define RENDER_CUDA_CALL(template_coord, template_depth, template_normal) \
-renderCUDA<NUM_CHANNELS, template_coord, template_depth, template_normal> <<<grid, block>>> ( \
-	ranges, point_list, W, H, view_points, means2D, colors, ts, camera_planes, ray_planes, \
-	normals, conic_opacity, focal_x, focal_y, out_alpha, n_contrib, bg_color, out_color, \
+renderCUDA<NUM_CHANNELS, NUM_CHANNELS_INTRINSICS, template_coord, template_depth, template_normal> <<<grid, block>>> ( \
+	ranges, point_list, W, H, view_points, means2D, colors, intrinsics, ts, camera_planes, ray_planes, \
+	normals, conic_opacity, focal_x, focal_y, out_alpha, n_contrib, bg_color, out_color, out_intrinsics, \
 	out_coord, out_mcoord, out_normal, out_depth, out_mdepth, \
 	accum_coord, accum_depth, normal_length)
 

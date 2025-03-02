@@ -398,12 +398,12 @@ __global__ void preprocessCUDA(
 }
 
 // Backward version of the rendering procedure.
-template <uint32_t C>
+template <uint32_t C, uint32_t S>
 __global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
 renderCUDA(
 	const uint2* __restrict__ ranges,
 	const uint32_t* __restrict__ point_list,
-	int S, int W, int H,
+	int W, int H,
 	const float* __restrict__ bg_color,
 	const float2* __restrict__ points_xy_image,
 	const float* __restrict__ depths,
@@ -683,7 +683,7 @@ void BACKWARD::render(
 	const dim3 grid, const dim3 block,
 	const uint2* ranges,
 	const uint32_t* point_list,
-	int S, int W, int H,
+	int W, int H,
 	const float* bg_color,
 	const float2* means2D,
 	const float* depths,
@@ -704,10 +704,10 @@ void BACKWARD::render(
 	bool backward_geometry
 	)
 {
-	renderCUDA<NUM_CHANNELS> << <grid, block >> >(
+	renderCUDA<NUM_CHANNELS, NUM_CHANNELS_INTRINSICS> << <grid, block >> >(
 		ranges,
 		point_list,
-		S, W, H,
+		W, H,
 		bg_color,
 		means2D,
 		depths,

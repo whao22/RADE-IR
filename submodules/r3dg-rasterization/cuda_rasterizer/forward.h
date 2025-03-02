@@ -52,7 +52,7 @@ namespace FORWARD
 		const dim3 grid, dim3 block,
 		const uint2* ranges,
 		const uint32_t* point_list,
-		int S, int W, int H,
+		int W, int H,
 		const float2* points_xy_image,
 		const float* depths,
 		const float* features,

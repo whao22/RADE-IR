@@ -37,9 +37,9 @@ cd `echo $PWD`
 
 # People-Snapshot
 python train_manual.py dataset=ps_male_3 option=iter30k
-python train_manual.py dataset=ps_male_4 option=iter30k
-python train_manual.py dataset=ps_female_3 option=iter30k
-python train_manual.py dataset=ps_female_4 option=iter30k
+# python train_manual.py dataset=ps_male_4 option=iter30k
+# python train_manual.py dataset=ps_female_3 option=iter30k
+# python train_manual.py dataset=ps_female_4 option=iter30k
 
 
 ###################### CUSTOM SCRIPTS END ######################

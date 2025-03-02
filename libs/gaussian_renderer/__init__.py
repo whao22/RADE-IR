@@ -163,12 +163,13 @@ def render(data,
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     ## GEOMETRY optimization, rasterize [rendered_image, rendered_alpha, rendered_normal]
-    (rendered_image, radii, rendered_expected_coord, rendered_median_coord, rendered_expected_depth, 
+    (rendered_image, intrinsic_images, radii, rendered_expected_coord, rendered_median_coord, rendered_expected_depth, 
      rendered_median_depth, rendered_alpha, rendered_normal, normals) = rade_rasterizer(
         means3D = means3D,
         means2D = means2D,
         shs = shs,
         colors_precomp = colors_precomp,
+        intrinsics_precomp = None,
         opacities = opacity,
         scales = scales,
         rotations = rotations,
