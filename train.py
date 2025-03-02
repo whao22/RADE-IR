@@ -11,7 +11,7 @@
 import pdb
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # if torch.cuda.is_available():
 #     if torch.cuda.device_count() > 1:
