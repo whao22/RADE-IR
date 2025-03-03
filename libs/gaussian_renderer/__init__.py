@@ -184,6 +184,7 @@ def render(data,
             "viewspace_points": screenspace_points,
             "visibility_filter" : radii > 0,
             "radii": radii,
+            "normals": normals,
             "loss_reg": loss_reg,})
     
     ##################################################################################
@@ -213,7 +214,15 @@ def render(data,
     rendered_normal2, rendered_base_color, rendered_roughness, rendered_metallic, \
         rendered_visibility = rendered_feature.split([3, 3, 1, 1, 1], dim=0)
     
-    
+    results.update({
+        "rendered_image2": rendered_image2,
+        "rendered_normal2": rendered_normal2,
+        "albedo_map": rendered_base_color, 
+        "roughness_map": rendered_roughness, 
+        "metallic_map": rendered_metallic,
+        "occlusion_map": rendered_visibility,
+        "rendered_pseudo_normal": rendered_pseudo_normal,
+    })
     ##################################################################################
     ############################## PBR Rendering START ###############################
     ##################################################################################
@@ -226,13 +235,6 @@ def render(data,
 
     results.update({
         "rendered_pbr": rendered_pbr,
-        "rendered_image2": rendered_image2,
-        "rendered_normal2": rendered_normal2,
-        "rendered_pseudo_normal": rendered_pseudo_normal,
-        "albedo_map": rendered_base_color, 
-        "roughness_map": rendered_roughness, 
-        "metallic_map": rendered_metallic,
-        "occlusion_map": rendered_visibility,
         "diffuse_map": rendered_diffuse,
         "specular_map": rendered_specular,
     })

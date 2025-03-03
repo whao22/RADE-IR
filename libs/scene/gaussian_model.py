@@ -51,9 +51,9 @@ class GaussianModel:
         self.rotation_activation = torch.nn.functional.normalize
 
         if self.use_pbr:
-            self.base_color_activation = lambda x: torch.sigmoid(x) * 0.77 + 0.03
-            self.roughness_activation = lambda x: torch.sigmoid(x) * 0.9 + 0.09
-            self.metallic_activation = lambda x: torch.sigmoid(x) * 0.9 + 0.09
+            self.base_color_activation = torch.sigmoid
+            self.roughness_activation = torch.sigmoid
+            self.metallic_activation = torch.sigmoid
 
     def __init__(self, cfg, render_type='3dgs'):
         self.cfg = cfg
@@ -581,9 +581,9 @@ class GaussianModel:
         if self.use_pbr:
             for i in range(self._base_color.shape[1]):
                 l.append('base_color_{}'.format(i))
-            for i in range(self._base_color.shape[1]):
+            for i in range(self._roughness.shape[1]):
                 l.append('roughness_{}'.format(i))
-            for i in range(self._base_color.shape[1]):
+            for i in range(self._metallic.shape[1]):
                 l.append('metallic_{}'.format(i))
         return l
 
@@ -770,9 +770,9 @@ class GaussianModel:
         xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
                         np.asarray(plydata.elements[0]["y"]),
                         np.asarray(plydata.elements[0]["z"])),  axis=1)
-        normal = np.stack((np.asarray(plydata.elements[0]["nx"]),
-                           np.asarray(plydata.elements[0]["ny"]),
-                           np.asarray(plydata.elements[0]["nz"])), axis=1)
+        # normal = np.stack((np.asarray(plydata.elements[0]["nx"]),
+        #                    np.asarray(plydata.elements[0]["ny"]),
+        #                    np.asarray(plydata.elements[0]["nz"])), axis=1)
         opacities = np.asarray(plydata.elements[0]["opacity"])[..., np.newaxis]
 
         filter_3D = np.asarray(plydata.elements[0]["filter_3D"])[..., np.newaxis]
@@ -804,7 +804,7 @@ class GaussianModel:
             rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
 
         self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True))
-        self._normal = nn.Parameter(torch.tensor(normal, dtype=torch.float, device="cuda").requires_grad_(True))
+        # self._normal = nn.Parameter(torch.tensor(normal, dtype=torch.float, device="cuda").requires_grad_(True))
         self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
         self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
         self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(True))
