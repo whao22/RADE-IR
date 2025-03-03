@@ -23,7 +23,7 @@ cd `echo $PWD`
 ##################### CUSTOM SCRIPTS START #####################
 
 # People-Snapshot
-python train.py dataset=ps_male_3 option=iter30k
+# python train.py dataset=ps_male_3 option=iter30k
 python train.py dataset=ps_male_4 option=iter30k
 python train.py dataset=ps_female_3 option=iter30k
 python train.py dataset=ps_female_4 option=iter30k

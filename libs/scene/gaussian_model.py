@@ -147,6 +147,7 @@ class GaussianModel:
         captured_list = [
             self.active_sh_degree,
             self._xyz,
+            self._normal,
             self._features_dc,
             self._features_rest,
             self._scaling,
