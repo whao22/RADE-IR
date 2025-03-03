@@ -80,10 +80,12 @@ def render(data,
     
     Background tensor (bg_color) must be on GPU!
     """
-    pc, loss_reg, colors_precomp, intrinsic_precompute = scene.convert_gaussians(data, iteration, compute_loss)
+    pc, loss_reg, colors_precomp, intrinsic_precomp, normal_precomp = scene.convert_gaussians(data, iteration, compute_loss)
     
     results = {
         "deformed_gaussian": pc,
+        "normal_precomp": normal_precomp,
+        "loss_reg": loss_reg,
     }
     
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
@@ -184,20 +186,20 @@ def render(data,
         "viewspace_points": screenspace_points,
         "visibility_filter" : radii > 0,
         "radii": radii,
-        "loss_reg": loss_reg,})
+        "normals": normals})
 
     ##################################################################################
     ############################ NEILF Optimization START ############################
     ##################################################################################
     # normal = pc.get_normal_per_vertex(cov3D_precomp_mtx, data.world_view_transform, data.projection_matrix)
-    visibility = pc.get_visibility(scene.sample_num, normals, scales=_scales, opacity=opacity)
+    visibility = pc.get_visibility(scene.sample_num, normal_precomp, scales=_scales, opacity=opacity)
     
     # base_color = pc.get_base_color
     # roughness = pc.get_roughness
     # metallic = pc.get_metallic
-    base_color, roughness, metallic = torch.split(intrinsic_precompute, [3, 1, 1], dim=-1)
+    base_color, roughness, metallic = torch.split(intrinsic_precomp, [3, 1, 1], dim=-1)
     
-    features = torch.cat([base_color, normals, roughness, metallic, visibility.mean(-2)], dim=-1)
+    features = torch.cat([base_color, normal_precomp, roughness, metallic, visibility.mean(-2)], dim=-1)
     
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     (num_rendered, num_contrib, rendered_image2, rendered_opacity2, rendered_depth,
@@ -215,25 +217,15 @@ def render(data,
     rendered_base_color, rendered_normal2, rendered_roughness, rendered_metallic, \
         rendered_visibility = rendered_feature.split([3, 3, 1, 1, 1], dim=0)
     
-    # formulate roughness
-    rmax, rmin = 1.0, 0.04
-    rendered_roughness = rendered_roughness * (rmax - rmin) + rmin
-    # rendered_roughness = rendered_roughness.mean(0, keepdim=True)
-    # rendered_metallic = rendered_metallic.mean(0, keepdim=True)
-
-    # PBR rendering
-    rays = scene.get_canonical_rays(data)
-    c2w = torch.inverse(data.world_view_transform.T)  # [4, 4]
-    view_dirs = -(
-        (F.normalize(rays[:, None, :], p=2, dim=-1) * c2w[None, :3, :3])  # [HW, 3, 3]
-        .sum(dim=-1)
-        .reshape(data.image_height, data.image_width, 3)
-    )  # [H, W, 3]
-    points = (
-        (-view_dirs.reshape(-1, 3) * rendered_median_depth.reshape(-1, 1) + c2w[:3, 3])
-        .clamp(min=-scene.cfg.opt.bound, max=scene.cfg.opt.bound)
-        .contiguous()
-    )  # [HW, 3]
+    results.update({
+        "rendered_image2": rendered_image2,
+        "rendered_normal2": rendered_normal2,
+        "rendered_pseudo_normal": rendered_pseudo_normal,
+        "albedo_map": rendered_base_color, 
+        "roughness_map": rendered_roughness, 
+        "metallic_map": rendered_metallic,
+        "occlusion_map": rendered_visibility,
+    })
     
     ##################################################################################
     ################################## PBR Rendering #################################
@@ -247,13 +239,6 @@ def render(data,
 
     results.update({
         "rendered_pbr": rendered_pbr,
-        "rendered_image2": rendered_image2,
-        "rendered_normal2": rendered_normal2,
-        "rendered_pseudo_normal": rendered_pseudo_normal,
-        "albedo_map": rendered_base_color, 
-        "roughness_map": rendered_roughness, 
-        "metallic_map": rendered_metallic,
-        "occlusion_map": rendered_visibility,
         "diffuse_map": rendered_diffuse,
         "specular_map": rendered_specular,
     })

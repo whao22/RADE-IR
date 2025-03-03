@@ -58,6 +58,7 @@ opt:
   position_lr_delay_mult: 0.01
   position_lr_max_steps: 30000
   feature_lr: 0.0025
+  normal_lr: 0.001
   opacity_lr: 0.05
   scaling_lr: 0.005
   rotation_lr: 0.001

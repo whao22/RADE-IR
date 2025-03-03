@@ -50,6 +50,7 @@ class SMPLNN(RigidDeform):
         bone_transforms = camera.bone_transforms
 
         xyz = gaussians.get_xyz
+        normal = gaussians.get_normal
         n_pts = xyz.shape[0]
         pts_W = self.query_weights(xyz)
         T_fwd = torch.matmul(pts_W, bone_transforms.view(-1, 16)).view(n_pts, 4, 4).float()
@@ -61,6 +62,10 @@ class SMPLNN(RigidDeform):
         x_hat_homo = torch.cat([xyz, homo_coord], dim=-1).view(n_pts, 4, 1)
         x_bar = torch.matmul(T_fwd, x_hat_homo)[:, :3, 0]
         deformed_gaussians._xyz = x_bar
+        
+        n_hat_homo = torch.cat([normal, homo_coord], dim=-1).view(n_pts, 4, 1)
+        n_bar = torch.matmul(T_fwd, n_hat_homo)[:, :3, 0]
+        deformed_gaussians._normal = n_bar
 
         rotation_hat = build_rotation(gaussians._rotation)
         rotation_bar = torch.matmul(T_fwd[:, :3, :3], rotation_hat)
@@ -216,6 +221,7 @@ class SkinningField(RigidDeform):
         tfs = camera.bone_transforms
 
         xyz = gaussians.get_xyz
+        normal = gaussians.get_normal
         n_pts = xyz.shape[0]
         xyz_norm = self.aabb.normalize(xyz, sym=True)
         T_fwd = self.get_forward_transform(xyz_norm, tfs)
@@ -227,6 +233,10 @@ class SkinningField(RigidDeform):
         x_hat_homo = torch.cat([xyz, homo_coord], dim=-1).view(n_pts, 4, 1)
         x_bar = torch.matmul(T_fwd, x_hat_homo)[:, :3, 0]
         deformed_gaussians._xyz = x_bar
+        
+        n_hat_homo = torch.cat([normal, homo_coord], dim=-1).view(n_pts, 4, 1)
+        n_bar = torch.matmul(T_fwd, n_hat_homo)[:, :3, 0]
+        deformed_gaussians._normal = n_bar
 
         rotation_hat = build_rotation(gaussians._rotation)
         rotation_bar = torch.matmul(T_fwd[:, :3, :3], rotation_hat)

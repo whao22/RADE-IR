@@ -11,7 +11,7 @@
 import pdb
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 # if torch.cuda.is_available():
 #     if torch.cuda.device_count() > 1:
@@ -277,7 +277,7 @@ def main(config):
     wandb.init(
         mode="disabled" if config.wandb_disable else None,
         name=wandb_name,
-        project='radea-ir-main',
+        project='radea-ir-new-master',
         # entity='fast-avatar',
         dir=config.exp_dir,
         config=OmegaConf.to_container(config, resolve=True),

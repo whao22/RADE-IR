@@ -7,6 +7,7 @@ from omegaconf import OmegaConf
 from libs.utils.loss_utils import l1_loss, ssim, get_pcd_uniformity_loss, l1_loss_appearance, get_masked_tv_loss, first_order_edge_aware_loss
 from libs.utils.graphics_utils import point_double_to_normal, depth_double_to_normal
 from libs.utils.loss_utils import full_aiap_loss
+from libs.models.loss.normal_consistency import compute_normal_consistency
 
 def C(iteration, value):
     if isinstance(value, int) or isinstance(value, float):
@@ -153,6 +154,36 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     loss += lambda_depth_normal * loss_depth_normal
     loss_dict["loss_depth_normal"] = loss_depth_normal
 
+    ################# normal #####################
+    # normal_consistency
+    lambda_normal_consistency = C(iteration, config.opt.lambda_normal_consistency)
+    if lambda_normal_consistency > 0:
+        loss_normal_consistency = compute_normal_consistency(render_pkg["deformed_gaussian"], render_pkg["normal_precomp"])
+    else:
+        loss_normal_consistency = torch.tensor(0.).cuda()
+    loss += lambda_normal_consistency * loss_normal_consistency
+    loss_dict.update({
+        "loss_normal_consistency": loss_normal_consistency
+    })
+    
+    # normal image
+    rendered_normal2 = render_pkg["rendered_normal2"]
+    rendered_normal = render_pkg["rendered_normal"].detach()
+    if lambda_l1 > 0.:
+        loss_normal_l1 = l1_loss(rendered_normal2, rendered_normal)
+    else:
+        loss_normal_l1 = torch.tensor(0).cuda()
+    if lambda_dssim > 0.:
+        loss_normal_dssim = 1.0 - ssim(rendered_normal2, rendered_normal)
+    else:
+        loss_normal_dssim = torch.tensor(0).cuda()
+    loss += lambda_l1 * loss_normal_l1 + lambda_dssim * loss_normal_dssim
+    loss_dict.update({
+        "loss_normal_l1": loss_normal_l1,
+        "loss_normal_dssim": loss_normal_dssim,
+    })
+    ################# normal #####################
+    
     # pbr loss
     lambda_pbr = C(iteration, config.opt.lambda_pbr)
     if lambda_pbr > 0:

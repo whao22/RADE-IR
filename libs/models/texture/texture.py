@@ -72,7 +72,10 @@ class ColorMLP(ColorPrecompute):
         
         d_out2 = 5
         self.mlp2 = VanillaCondMLP(d_in, 0, d_out2, cfg.mlp)
-        self.intrinsic_activation = nn.Sigmoid()
+        self.intrinsic_activation = lambda x : torch.sigmoid(x) * 0.9 + 0.099
+        
+        self.mlp3 = VanillaCondMLP(d_in - cfg.feature_dim + 3, 0, 3, cfg.mlp)
+        self.normal_activation = torch.nn.functional.normalize
         
     def compose_input(self, gaussians, camera, features):
         n_points = features.shape[0]
@@ -133,7 +136,13 @@ class ColorMLP(ColorPrecompute):
         output2 = self.mlp2(intrinsic_inp)
         intrinsic = self.intrinsic_activation(output2)
         
-        return color, intrinsic
+        # normal
+        normal = gaussians.get_normal.squeeze(-1) # [num_gaussians, normal_dim]
+        normal_inp = torch.cat([normal, features_inp[:, features.shape[-1]:]], dim=1)
+        output3 = self.mlp3(normal_inp)
+        normal = self.normal_activation(output3)
+        
+        return color, intrinsic, normal
 
 
 def get_texture(cfg, metadata):

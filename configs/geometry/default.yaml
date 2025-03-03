@@ -10,3 +10,4 @@ opt:
   lambda_normal_bilateral_smooth: 0.005
   appearance_embeddings_lr: 0.001
   appearance_network_lr: 0.001
+  lambda_normal_consistency: 0.
