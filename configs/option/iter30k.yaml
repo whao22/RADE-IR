@@ -5,4 +5,4 @@ opt:
 
   lr_ratio: 0.1
   densify_until_iter: 15000
-  regularization_from_iter: 18000
+  regularization_from_iter: 5000

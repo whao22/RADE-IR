@@ -61,6 +61,7 @@ opt:
   opacity_lr: 0.05
   scaling_lr: 0.005
   rotation_lr: 0.001
+  normal_lr: 0.0001
 
   pose_correction_lr: 1e-4
   rigid_lr: 1e-4

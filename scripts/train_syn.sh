@@ -23,27 +23,27 @@ cd `echo $PWD`
 ##################### CUSTOM SCRIPTS START #####################
 
 # SyntheticHuman
-python train_slurm.py dataset=jody option=iter15k
-python train_slurm.py dataset=megan option=iter15k # start_checkpoint=exp/megan-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
-python train_slurm.py dataset=manuel option=iter15k
+python train.py dataset=jody option=iter15k
+python train.py dataset=megan option=iter15k # start_checkpoint=exp/megan-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
+python train.py dataset=manuel option=iter15k
 
 # People-Snapshot
-python train_slurm.py dataset=ps_male_3 option=iter50k # start_checkpoint=exp/ps_male_3-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
-python train_slurm.py dataset=ps_male_4 option=iter50k
-python train_slurm.py dataset=ps_female_3 option=iter15k
-python train_slurm.py dataset=ps_female_4 option=iter50k
+python train.py dataset=ps_male_3 option=iter50k # start_checkpoint=exp/ps_male_3-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
+python train.py dataset=ps_male_4 option=iter50k
+python train.py dataset=ps_female_3 option=iter15k
+python train.py dataset=ps_female_4 option=iter50k
 
 # ZJU-MoCap
-python train_slurm.py dataset=zjumocap_393_mono option=iter50k
-python train_slurm.py dataset=zjumocap_394_mono option=iter50k
-python train_slurm.py dataset=zjumocap_386_mono option=iter50k
-python train_slurm.py dataset=zjumocap_387_mono option=iter50k
-python train_slurm.py dataset=zjumocap_377_mono option=iter50k
+python train.py dataset=zjumocap_393_mono option=iter50k
+python train.py dataset=zjumocap_394_mono option=iter50k
+python train.py dataset=zjumocap_386_mono option=iter50k
+python train.py dataset=zjumocap_387_mono option=iter50k
+python train.py dataset=zjumocap_377_mono option=iter50k
 
 # SyntheticHuman
-python train_slurm.py dataset=jody option=iter50k
-python train_slurm.py dataset=megan option=iter50k # start_checkpoint=exp/megan-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
-python train_slurm.py dataset=manuel option=iter50k
+python train.py dataset=jody option=iter50k
+python train.py dataset=megan option=iter50k # start_checkpoint=exp/megan-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
+python train.py dataset=manuel option=iter50k
 
 ###################### CUSTOM SCRIPTS END ######################
 ################################################################

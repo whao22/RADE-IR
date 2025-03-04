@@ -5,6 +5,6 @@ opt:
 
   lr_ratio: 0.0215
   densify_until_iter: 25000
-  regularization_from_iter: 10000
+  regularization_from_iter: 5000
 
 test_interval: 2000

@@ -153,6 +153,25 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     loss += lambda_depth_normal * loss_depth_normal
     loss_dict["loss_depth_normal"] = loss_depth_normal
 
+    ################# normal #####################
+    # normal image
+    rendered_normal2 = render_pkg["rendered_normal2"]
+    rendered_normal = render_pkg["rendered_normal"].detach()
+    if lambda_l1 > 0.:
+        loss_normal_l1 = l1_loss(rendered_normal2, rendered_normal)
+    else:
+        loss_normal_l1 = torch.tensor(0).cuda()
+    if lambda_dssim > 0.:
+        loss_normal_dssim = 1.0 - ssim(rendered_normal2, rendered_normal)
+    else:
+        loss_normal_dssim = torch.tensor(0).cuda()
+    loss += lambda_l1 * loss_normal_l1 + lambda_dssim * loss_normal_dssim
+    loss_dict.update({
+        "loss_normal_l1": loss_normal_l1,
+        "loss_normal_dssim": loss_normal_dssim,
+    })
+    ################# normal #####################
+    
     # pbr loss
     lambda_pbr = C(iteration, config.opt.lambda_pbr)
     if lambda_pbr > 0:

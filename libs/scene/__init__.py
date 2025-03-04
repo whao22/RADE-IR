@@ -21,6 +21,7 @@ from libs.models import GaussianConverter
 from libs.utils.pbr import CubemapLight, get_brdf_lut
 from libs.scene.gaussian_model import GaussianModel
 from libs.dataset import load_dataset
+from libs.models.network_utils import VanillaCondMLP
 
 def get_envmap_dirs(res: List[int] = [512, 1024]) -> torch.Tensor:
     gy, gx = torch.meshgrid(
@@ -66,6 +67,12 @@ class Scene:
 
         self.converter = GaussianConverter(cfg, self.metadata).cuda()
 
+        self.normal_refine = VanillaCondMLP(3, 0, 3, cfg.model.texture.mlp).cuda()
+        
+        self.opt_params = [
+            {"params": self.normal_refine.parameters(), "lr": self.cfg.opt.normal_lr}    
+        ]
+        
         if self.use_pbr:
             self.sample_num = self.cfg.opt.sample_num
             self.brdf_lut = get_brdf_lut().cuda()
@@ -75,11 +82,10 @@ class Scene:
             self.irradiance_volumes = IrradianceVolumes(aabb).cuda()
             self.cubemap = CubemapLight(base_res=256).cuda()
             
-            opt_params = [
+            self.opt_params.extend([
                 {"params": self.irradiance_volumes.parameters(), "lr": self.cfg.opt.opacity_lr},
                 {"params": self.cubemap.parameters(), "lr": self.cfg.opt.opacity_lr},
-            ]
-            self.light_optimizer = torch.optim.Adam(opt_params, lr=self.cfg.opt.light_lr)
+            ])
     
     def train(self):
         self.converter.train()
@@ -101,6 +107,7 @@ class Scene:
         self.converter.optimize()
 
         if self.use_pbr:
+            self.light_optimizer = torch.optim.Adam(self.opt_params, lr=self.cfg.opt.light_lr)
             self.light_optimizer.step()
             self.light_optimizer.zero_grad()
         

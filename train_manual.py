@@ -11,7 +11,7 @@
 import pdb
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 # if torch.cuda.is_available():
 #     if torch.cuda.device_count() > 1:
@@ -274,15 +274,18 @@ def main(config):
 
     # set wandb logger
     wandb_name = config.name
-    wandb.init(
-        mode="disabled" if config.wandb_disable else None,
-        name=wandb_name,
-        project='radea-ir-main',
-        # entity='fast-avatar',
-        dir=config.exp_dir,
-        config=OmegaConf.to_container(config, resolve=True),
-        settings=wandb.Settings(start_method='fork'),
-    )
+    try:
+        wandb.init(
+            mode="disabled" if config.wandb_disable else None,
+            name=wandb_name,
+            project='radea-ir-main',
+            # entity='fast-avatar',
+            dir=config.exp_dir,
+            config=OmegaConf.to_container(config, resolve=True),
+            settings=wandb.Settings(start_method='fork'),
+        )
+    except:
+        print("wandb init failed")
 
     # print("Optimizing " + config.exp_dir)
 
