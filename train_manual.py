@@ -278,7 +278,7 @@ def main(config):
         wandb.init(
             mode="disabled" if config.wandb_disable else None,
             name=wandb_name,
-            project='radea-ir-main',
+            project='radea-ir-refin_normal_by_mlp',
             # entity='fast-avatar',
             dir=config.exp_dir,
             config=OmegaConf.to_container(config, resolve=True),
