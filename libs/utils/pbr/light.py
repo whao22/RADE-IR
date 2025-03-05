@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .renderutils import diffuse_cubemap, specular_cubemap
+from renderutils import diffuse_cubemap, specular_cubemap
 
 
 def cube_to_dir(s: int, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:

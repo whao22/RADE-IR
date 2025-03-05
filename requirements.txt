@@ -23,10 +23,10 @@ wandb
 hydra-core
 
 git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-
-
-# git+https://github.com/NJU-3DV/Relightable3DGaussian/#subdirectory=r3dg-rasterization
 submodules/simple-knn
 submodules/r3dg-rasterization
 submodules/radegs-rasterization
 submodules/nvdiffrast
+submodules/bvh
+submodules/gs-ir
+submodules/renderutils

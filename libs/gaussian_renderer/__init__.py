@@ -237,6 +237,7 @@ def render(data,
         "occlusion_map": rendered_visibility,
         "diffuse_map": rendered_diffuse,
         "specular_map": rendered_specular,
+        "normals_refined": normals_refined
     })
     
     return results

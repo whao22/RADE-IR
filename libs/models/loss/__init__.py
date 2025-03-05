@@ -6,7 +6,8 @@ from omegaconf import OmegaConf
 
 from libs.utils.loss_utils import l1_loss, ssim, get_pcd_uniformity_loss, l1_loss_appearance, get_masked_tv_loss, first_order_edge_aware_loss
 from libs.utils.graphics_utils import point_double_to_normal, depth_double_to_normal
-from libs.utils.loss_utils import full_aiap_loss
+from libs.utils.loss_utils import full_aiap_loss, tv_loss
+from libs.models.loss.normal_consistency import compute_normal_consistency
 
 def C(iteration, value):
     if isinstance(value, int) or isinstance(value, float):
@@ -27,7 +28,7 @@ def C(iteration, value):
     return value
 
 
-def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vgg, reg_kick_on, require_depth):
+def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vgg, reg_from_iter, require_depth):
     loss_dict = {}
     deformed_gaussian = render_pkg["deformed_gaussian"]
     
@@ -60,9 +61,9 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         if dataset.use_decoupled_appearance:
             loss_l1_2 = l1_loss_appearance(image2, gt_image, deformed_gaussian, data.frame_id)
         else:
-            loss_l1_2 = l1_loss(image, gt_image)
+            loss_l1_2 = l1_loss(image2, gt_image)
     if lambda_dssim > 0.:
-        loss_dssim_2 = 1.0 - ssim(image, gt_image)
+        loss_dssim_2 = 1.0 - ssim(image2, gt_image)
     loss += lambda_l1 * loss_l1_2 + lambda_dssim * loss_dssim_2
     loss_dict.update({
         "loss_l1_2": loss_l1_2,
@@ -131,8 +132,9 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         loss_pcd_uniformity = torch.tensor(0.).cuda()
     loss_dict["loss_pcd_uniformity"] = loss_pcd_uniformity
 
+    ################# normal #####################
     # geometry regularization
-    if reg_kick_on:
+    if iteration > reg_from_iter:
         lambda_depth_normal = config.opt.lambda_depth_normal
         if require_depth:
             rendered_expected_depth: torch.Tensor = render_pkg["expected_depth"]
@@ -153,8 +155,17 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     loss += lambda_depth_normal * loss_depth_normal
     loss_dict["loss_depth_normal"] = loss_depth_normal
 
-    ################# normal #####################
-    # normal image
+    # normal consistency
+    if iteration > reg_from_iter + 1500:
+        lambda_normal_consistency = config.opt.lambda_normal_consistency
+        if lambda_normal_consistency > 0.:
+            loss_normal_consistency = compute_normal_consistency(render_pkg["deformed_gaussian"], render_pkg["normals_refined"])
+        else:
+            loss_normal_consistency = torch.tensor(0.).cuda()
+        loss += loss_normal_consistency * lambda_normal_consistency
+        loss_dict["loss_normal_consistency"] = loss_normal_consistency * lambda_normal_consistency
+    
+    # refined normal image
     rendered_normal2 = render_pkg["rendered_normal2"]
     rendered_normal = render_pkg["rendered_normal"].detach()
     if lambda_l1 > 0.:
@@ -170,6 +181,15 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         "loss_normal_l1": loss_normal_l1,
         "loss_normal_dssim": loss_normal_dssim,
     })
+    
+    # refined normal tv loss
+    lambda_normal_tv = C(iteration, config.opt.lambda_normal_tv)
+    if lambda_normal_tv > 0:
+        loss_normal2_tv = tv_loss(rendered_normal2) + tv_loss(rendered_normal)
+        loss += lambda_normal_tv * loss_normal2_tv
+    else:
+        loss_normal2_tv = torch.tensor(0.).cuda()
+    loss_dict["loss_normal2_tv"] = loss_normal2_tv
     ################# normal #####################
     
     # pbr loss
@@ -190,32 +210,33 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         loss_pbr = torch.tensor(0.).cuda()
     loss_dict["loss_pbr"] = loss_pbr
 
-    # base color loss
-    lambda_base_color_smooth = C(iteration, config.opt.lambda_base_color_smooth)
-    if lambda_base_color_smooth > 0:
-        loss_base_color = first_order_edge_aware_loss(render_pkg["albedo_map"] * gt_mask, gt_image)
-        loss += lambda_base_color_smooth * loss_base_color
-    else:
-        loss_base_color = torch.tensor(0.).cuda()
-    loss_dict["loss_base_color"] = loss_base_color
+    if False:
+        # base color loss
+        lambda_base_color_smooth = C(iteration, config.opt.lambda_base_color_smooth)
+        if lambda_base_color_smooth > 0:
+            loss_base_color = first_order_edge_aware_loss(render_pkg["albedo_map"] * gt_mask, gt_image)
+            loss += lambda_base_color_smooth * loss_base_color
+        else:
+            loss_base_color = torch.tensor(0.).cuda()
+        loss_dict["loss_base_color"] = loss_base_color
 
-    # roughtness loss
-    lambda_metallic_smooth = C(iteration, config.opt.lambda_metallic_smooth)
-    if lambda_metallic_smooth > 0:
-        loss_roughness= first_order_edge_aware_loss(render_pkg["roughness_map"] * gt_mask, gt_image)
-        loss += lambda_metallic_smooth * loss_roughness
-    else:
-        loss_roughness = torch.tensor(0.).cuda()
-    loss_dict["loss_roughness"] = loss_roughness
+        # roughtness loss
+        lambda_metallic_smooth = C(iteration, config.opt.lambda_metallic_smooth)
+        if lambda_metallic_smooth > 0:
+            loss_roughness= first_order_edge_aware_loss(render_pkg["roughness_map"] * gt_mask, gt_image)
+            loss += lambda_metallic_smooth * loss_roughness
+        else:
+            loss_roughness = torch.tensor(0.).cuda()
+        loss_dict["loss_roughness"] = loss_roughness
 
-    # metallic loss
-    lambda_metallic_smooth = C(iteration, config.opt.lambda_metallic_smooth)
-    if lambda_metallic_smooth > 0:
-        loss_metallic = first_order_edge_aware_loss(render_pkg["metallic_map"] * gt_mask, gt_image)
-        loss += lambda_metallic_smooth * loss_metallic
-    else:
-        loss_metallic = torch.tensor(0.).cuda()
-    loss_dict["loss_metallic"] = loss_metallic
+        # metallic loss
+        lambda_metallic_smooth = C(iteration, config.opt.lambda_metallic_smooth)
+        if lambda_metallic_smooth > 0:
+            loss_metallic = first_order_edge_aware_loss(render_pkg["metallic_map"] * gt_mask, gt_image)
+            loss += lambda_metallic_smooth * loss_metallic
+        else:
+            loss_metallic = torch.tensor(0.).cuda()
+        loss_dict["loss_metallic"] = loss_metallic
 
     # brdf tv loss
     lambda_brdf_tv = C(iteration, config.opt.lambda_brdf_tv)
@@ -234,22 +255,25 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         loss_brdf_tv = torch.tensor(0.).cuda()
     loss_dict["loss_brdf_tv"] = loss_brdf_tv
 
-    # envmap tv smoothness
-    lambda_env_tv = C(iteration, config.opt.lambda_env_tv)
-    if lambda_env_tv > 0:
-        envmap = dr.texture(
-            scene.cubemap.base[None, ...],
-            scene.envmap_dirs[None, ...].contiguous(),
-            filter_mode="linear",
-            boundary_mode="cube",
-        )[0]  # [H, W, 3]
-        tv_h1 = torch.pow(envmap[1:, :, :] - envmap[:-1, :, :], 2).mean()
-        tv_w1 = torch.pow(envmap[:, 1:, :] - envmap[:, :-1, :], 2).mean()
-        loss_env_tv = tv_h1 + tv_w1
-        loss += loss_env_tv * lambda_env_tv
-    else:
-        loss_env_tv = torch.tensor(0.).cuda()
-    loss_dict["loss_env_tv"] = loss_env_tv
+    try:
+        # envmap tv smoothness
+        lambda_env_tv = C(iteration, config.opt.lambda_env_tv)
+        if lambda_env_tv > 0:
+            envmap = dr.texture(
+                scene.cubemap.base[None, ...],
+                scene.envmap_dirs[None, ...].contiguous(),
+                filter_mode="linear",
+                boundary_mode="cube",
+            )[0]  # [H, W, 3]
+            tv_h1 = torch.pow(envmap[1:, :, :] - envmap[:-1, :, :], 2).mean()
+            tv_w1 = torch.pow(envmap[:, 1:, :] - envmap[:, :-1, :], 2).mean()
+            loss_env_tv = tv_h1 + tv_w1
+            loss += loss_env_tv * lambda_env_tv
+        else:
+            loss_env_tv = torch.tensor(0.).cuda()
+        loss_dict["loss_env_tv"] = loss_env_tv
+    except:
+        print("envmap tv smoothness loss failed!")
 
     # regularization
     loss_reg = render_pkg["loss_reg"]

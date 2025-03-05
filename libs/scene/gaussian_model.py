@@ -25,7 +25,7 @@ from libs.utils.sh_utils import RGB2SH
 from libs.utils.graphics_utils import BasicPointCloud, sample_incident_rays, geom_transform_points
 from libs.utils.general_utils import strip_symmetric, build_scaling_rotation
 from libs.scene.appearance_network import AppearanceNetwork
-from libs.utils.bvh import RayTracer
+from libs.utils.bvh_tracing import RayTracer
 from libs.utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
 
 

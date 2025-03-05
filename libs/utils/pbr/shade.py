@@ -190,8 +190,7 @@ def pbr_shading(
     if gamma:
         render_rgb = linear_to_srgb(render_rgb.squeeze())
 
-    if background is not None:
-        render_rgb = torch.where(mask, render_rgb, background)
+    render_rgb = torch.where(mask, render_rgb, background)
 
     results.update(
         {

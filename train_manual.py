@@ -11,7 +11,7 @@
 import pdb
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 # if torch.cuda.is_available():
 #     if torch.cuda.device_count() > 1:
@@ -108,7 +108,7 @@ def training(config):
                             compute_loss=True,
                             require_coord = require_coord and reg_kick_on, 
                             require_depth = require_depth and reg_kick_on)
-        loss, loss_dict = compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vgg, reg_kick_on, require_depth)
+        loss, loss_dict = compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vgg, opt.regularization_from_iter, require_depth)
         loss.backward()
 
         iter_end.record()

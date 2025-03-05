@@ -23,12 +23,12 @@ cd `echo $PWD`
 ##################### CUSTOM SCRIPTS START #####################
 
 # SyntheticHuman
-python train_manual.py dataset=jody option=iter15k
+# python train_manual.py dataset=jody option=iter15k
 # python train_manual.py dataset=megan option=iter15k # start_checkpoint=exp/megan-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
 # python train_manual.py dataset=manuel option=iter15k
 
 # # People-Snapshot
-# python train_manual.py dataset=ps_male_3 option=iter50k # start_checkpoint=exp/ps_male_3-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
+python train_manual.py dataset=ps_male_3 option=iter15k # start_checkpoint=exp/ps_male_3-direct-mlp_field-ingp-shallow_mlp-default/ckpt10000.pth
 # python train_manual.py dataset=ps_male_4 option=iter50k
 # python train_manual.py dataset=ps_female_3 option=iter15k
 # python train_manual.py dataset=ps_female_4 option=iter50k

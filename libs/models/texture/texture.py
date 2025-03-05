@@ -72,7 +72,7 @@ class ColorMLP(ColorPrecompute):
         
         d_out2 = 5
         self.mlp2 = VanillaCondMLP(d_in, 0, d_out2, cfg.mlp)
-        self.intrinsic_activation = lambda x: torch.sigmoid(x)*0.9 + 0.999
+        self.intrinsic_activation = lambda x: torch.sigmoid(x)*0.9 + 0.0999
         # self.intrinsic_activation = torch.sigmoid
         
     def compose_input(self, gaussians, camera, features):

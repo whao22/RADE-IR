@@ -37,11 +37,6 @@ pip install --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.co
 
 # install required packages
 pip install -r requirements.txt
-
-# install other packages
-cd libs/utils
-pip install ./bvh
-pip install ./gs-ir
 ```
 
 ## Data preparation

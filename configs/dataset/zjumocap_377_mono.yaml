@@ -14,6 +14,7 @@ dataset:
     view: ${dataset.val_views}
     video: ['12']
     all: []
+    pose: [ '1' ]
   predict_views: ['1']
 
   train_frames: [ 0, 570, 1 ]
@@ -22,6 +23,7 @@ dataset:
     view: [0, 570, 30]
     video: [0, 570, 1]
     all: [0, 570, 1]
+    pose: [0, 570, 10]
   predict_frames: [0, 0, 1]
 
   img_hw:
