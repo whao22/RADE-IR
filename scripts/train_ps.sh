@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=18
 #SBATCH --mem=128G
-#SBATCH --partition=L40
+#SBATCH --partition=gpujl,L40
 #SBATCH --gres=gpu:1
 
 # show currrent status
