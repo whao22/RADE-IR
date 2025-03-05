@@ -86,7 +86,9 @@ class Scene:
                 {"params": self.irradiance_volumes.parameters(), "lr": self.cfg.opt.opacity_lr},
                 {"params": self.cubemap.parameters(), "lr": self.cfg.opt.opacity_lr},
             ])
-    
+            
+        self.light_optimizer = torch.optim.Adam(self.opt_params, lr=self.cfg.opt.light_lr)
+            
     def train(self):
         self.converter.train()
         if self.use_pbr:
@@ -107,7 +109,6 @@ class Scene:
         self.converter.optimize()
 
         if self.use_pbr:
-            self.light_optimizer = torch.optim.Adam(self.opt_params, lr=self.cfg.opt.light_lr)
             self.light_optimizer.step()
             self.light_optimizer.zero_grad()
         
