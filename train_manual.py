@@ -11,15 +11,7 @@
 import pdb
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-
-# if torch.cuda.is_available():
-#     if torch.cuda.device_count() > 1:
-#         os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-#     else:
-#         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-# else:
-#     print("There are none of GPU.")
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 from tqdm import tqdm
 from random import randint
@@ -125,7 +117,8 @@ def training(config):
             # Progress bar
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
             if iteration % 10 == 0:
-                progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}"})
+                progress_bar.set_postfix({"Loss:": f"{ema_loss_for_log:.{7}f}",
+                                          "NPoints:": f"{gaussians.get_xyz.shape[0]}"})
                 progress_bar.update(10)
             if iteration == opt.iterations:
                 progress_bar.close()
@@ -147,7 +140,8 @@ def training(config):
                 if iteration > opt.densify_from_iter and iteration % opt.densification_interval == 0:
                     size_threshold = 20 if iteration > opt.opacity_reset_interval else None
                     gaussians.densify_and_prune(opt, scene, size_threshold)
-                    print("points in the model: ", gaussians.get_xyz.shape[0])
+                    
+                    # print("points in the model: ", gaussians.get_xyz.shape[0])
                     
                     if dataset.disable_filter3D:
                         gaussians.reset_3D_filter()
@@ -265,7 +259,9 @@ def validation(iteration, testing_iterations, testing_interval, scene : Scene, e
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(config):
-    print(OmegaConf.to_yaml(config))
+    if config.debug:
+        print(OmegaConf.to_yaml(config))
+        
     OmegaConf.set_struct(config, False) # allow adding new values to config
 
     config.exp_dir = config.get('exp_dir') or os.path.join('./exp', config.name)
@@ -274,20 +270,18 @@ def main(config):
 
     # set wandb logger
     wandb_name = config.name
-    try:
-        wandb.init(
-            mode="disabled" if config.wandb_disable else None,
-            name=wandb_name,
-            project='radea-ir-refin_normal_by_mlp',
-            # entity='fast-avatar',
-            dir=config.exp_dir,
-            config=OmegaConf.to_container(config, resolve=True),
-            settings=wandb.Settings(start_method='fork'),
-        )
-    except:
-        print("wandb init failed")
-
-    # print("Optimizing " + config.exp_dir)
+    wandb.init(
+        mode="disabled" if config.wandb_disable else None,
+        name=wandb_name,
+        project='radea-ir-refin_normal_by_mlp',
+        # entity='fast-avatar',
+        dir=config.exp_dir,
+        config=OmegaConf.to_container(config, resolve=True),
+        settings=wandb.Settings(start_method='fork'),
+    )
+    
+    if config.debug:
+        print("Optimizing " + config.exp_dir)
 
     # Initialize system state (RNG)
     fix_random(config.seed)

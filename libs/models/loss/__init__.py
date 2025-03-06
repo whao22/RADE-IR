@@ -1,3 +1,4 @@
+import pdb
 import torch
 import torch.nn.functional as F
 import nvdiffrast.torch as dr
@@ -183,6 +184,7 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     })
     
     # refined normal tv loss
+    rendered_normal2 = render_pkg["rendered_normal2"]
     lambda_normal_tv = C(iteration, config.opt.lambda_normal_tv)
     if lambda_normal_tv > 0:
         loss_normal2_tv = tv_loss(rendered_normal2) + tv_loss(rendered_normal)
@@ -210,34 +212,6 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         loss_pbr = torch.tensor(0.).cuda()
     loss_dict["loss_pbr"] = loss_pbr
 
-    if False:
-        # base color loss
-        lambda_base_color_smooth = C(iteration, config.opt.lambda_base_color_smooth)
-        if lambda_base_color_smooth > 0:
-            loss_base_color = first_order_edge_aware_loss(render_pkg["albedo_map"] * gt_mask, gt_image)
-            loss += lambda_base_color_smooth * loss_base_color
-        else:
-            loss_base_color = torch.tensor(0.).cuda()
-        loss_dict["loss_base_color"] = loss_base_color
-
-        # roughtness loss
-        lambda_metallic_smooth = C(iteration, config.opt.lambda_metallic_smooth)
-        if lambda_metallic_smooth > 0:
-            loss_roughness= first_order_edge_aware_loss(render_pkg["roughness_map"] * gt_mask, gt_image)
-            loss += lambda_metallic_smooth * loss_roughness
-        else:
-            loss_roughness = torch.tensor(0.).cuda()
-        loss_dict["loss_roughness"] = loss_roughness
-
-        # metallic loss
-        lambda_metallic_smooth = C(iteration, config.opt.lambda_metallic_smooth)
-        if lambda_metallic_smooth > 0:
-            loss_metallic = first_order_edge_aware_loss(render_pkg["metallic_map"] * gt_mask, gt_image)
-            loss += lambda_metallic_smooth * loss_metallic
-        else:
-            loss_metallic = torch.tensor(0.).cuda()
-        loss_dict["loss_metallic"] = loss_metallic
-
     # brdf tv loss
     lambda_brdf_tv = C(iteration, config.opt.lambda_brdf_tv)
     if lambda_brdf_tv > 0:
@@ -255,8 +229,8 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
         loss_brdf_tv = torch.tensor(0.).cuda()
     loss_dict["loss_brdf_tv"] = loss_brdf_tv
 
+    # envmap tv smoothness
     try:
-        # envmap tv smoothness
         lambda_env_tv = C(iteration, config.opt.lambda_env_tv)
         if lambda_env_tv > 0:
             envmap = dr.texture(

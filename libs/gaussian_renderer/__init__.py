@@ -192,12 +192,7 @@ def render(data,
     ##################################################################################
     # normal = pc.get_normal_per_vertex(cov3D_precomp_mtx, data.world_view_transform, data.projection_matrix)
     visibility = pc.get_visibility(scene.sample_num, normals_refined, scales=_scales, opacity=opacity)
-    
-    # base_color = pc.get_base_color
-    # roughness = pc.get_roughness
-    # metallic = pc.get_metallic
     base_color, roughness, metallic = torch.split(intrinsic_precompute, [3, 1, 1], dim=-1)
-    
     features = torch.cat([base_color, normals_refined, roughness, metallic, visibility.mean(-2)], dim=-1)
     
     # Rasterize visible Gaussians to image, obtain their radii (on screen).

@@ -115,3 +115,4 @@ render_type: neilf
 load_ckpt: null
 evaluate: true
 clean: true
+debug: false

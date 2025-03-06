@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=18
 #SBATCH --mem=128G
-#SBATCH --partition=gpujl,L40
+#SBATCH --partition=gpujl
 #SBATCH --gres=gpu:1
 
 # show currrent status
@@ -23,10 +23,10 @@ cd `echo $PWD`
 ##################### CUSTOM SCRIPTS START #####################
 
 # People-Snapshot
-# python train.py dataset=ps_male_3 option=iter30k
+# python train.py dataset=ps_male_3 option=iter15k
 python train.py dataset=ps_male_4 option=iter30k
 python train.py dataset=ps_female_3 option=iter30k
-# python train.py dataset=ps_female_4 option=iter30k
+python train.py dataset=ps_female_4 option=iter30k
 
 # # SyntheticHuman
 # python train.py dataset=jody option=iter30k

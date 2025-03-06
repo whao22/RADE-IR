@@ -1,6 +1,7 @@
 import torch
+import pytorch3d.ops as ops
 
-def compute_normal_consistency(deformed_gaussian, normals: torch.Tensor, k_neighbors=3):
+def compute_normal_consistency(deformed_gaussian, normals: torch.Tensor, k_neighbors=10):
     """
     Compute normal consistency loss for a point cloud.
     The loss is computed by finding the k nearest neighbors of each point and calculating the cosine similarity between
@@ -14,9 +15,11 @@ def compute_normal_consistency(deformed_gaussian, normals: torch.Tensor, k_neigh
     xyz = deformed_gaussian.get_xyz.detach()
     
     # find k nearest neighbors and get neighbors' normals
-    dist = torch.cdist(xyz, xyz)
-    _, indices = torch.topk(dist, k=k_neighbors+1, largest=False)
-    indices = indices[:, 1:]
+    knn_ret = ops.knn_points(xyz.unsqueeze(0), xyz.unsqueeze(0), K=k_neighbors+1)
+    indices = knn_ret.idx
+    assert indices.max() < normals.shape[0], "indices.max() < normals.shape[0] is False"
+
+    indices = indices.squeeze(0)[:, 1:] # [N, k_neighbors]
     neighbor_normals = normals[indices]
 
     # calculate the cosine similarity between each point's normal and its neighbors' normals
