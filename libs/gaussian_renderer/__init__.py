@@ -17,7 +17,7 @@ from libs.scene import Scene
 from radegs_rasterization import GaussianRasterizationSettings as DeRasterSettings, GaussianRasterizer as DeRasterizer
 from r3dg_rasterization import GaussianRasterizationSettings as R3DRasterSettings, GaussianRasterizer as R3DRasterizer
 
-def pbr_render(data, scene: Scene, rendered_maps: list, bg_color):
+def pbr_render(data, scene: Scene, rendered_maps: list, bg_color, is_training=True):
     rendered_base_color, rendered_metallic, rendered_roughness, rendered_normal, rendered_alpha, rendered_median_depth, rendered_visibility = rendered_maps
     
     # formulate roughness
@@ -54,8 +54,8 @@ def pbr_render(data, scene: Scene, rendered_maps: list, bg_color):
         albedo=rendered_base_color.permute(1, 2, 0),  # [H, W, 3]
         roughness=rendered_roughness.permute(1, 2, 0),  # [H, W, 1]
         metallic=rendered_metallic.permute(1, 2, 0),  # [H, W, 1]
-        occlusion=rendered_visibility.permute(1, 2, 0),  # [H, W, 1]
-        irradiance=irradiance_map,
+        occlusion=rendered_visibility.permute(1, 2, 0) if is_training else None,  # [H, W, 1]
+        irradiance=irradiance_map if is_training else None,
         tone=scene.cfg.opt.tone,
         gamma=scene.cfg.opt.gamma,
         background=bg_color,
@@ -215,7 +215,7 @@ def render(data,
     ################################## PBR Rendering #################################
     ##################################################################################
     rendered_maps = [rendered_base_color,  rendered_metallic, rendered_roughness, rendered_normal, rendered_alpha, rendered_median_depth, rendered_visibility]
-    pbr_result = pbr_render(data, scene, rendered_maps, bg_color)
+    pbr_result = pbr_render(data, scene, rendered_maps, bg_color, is_training)
     
     rendered_pbr = pbr_result["render_rgb"].permute(2, 0, 1)  # [3, H, W]
     rendered_diffuse = pbr_result["diffuse_rgb"].permute(2, 0, 1)  # [3, H, W]

@@ -9,7 +9,7 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import pdb
 import cv2
 import torch
@@ -97,11 +97,11 @@ def predict(config):
 
         if config.hdr is not None:
             hdri = read_hdr(os.path.join("data/hdr/high_res_envmaps_2k", f"{config.hdr}.hdr"))
-            hdri = torch.from_numpy(hdri).cuda()
+            hdri = torch.from_numpy(hdri).cuda() * 0.8
             res = 256
-            # cubemap = CubemapLight(base_res=res).cuda()
             scene.cubemap.base.data = latlong_to_cubemap(hdri, [res, res])
-
+            scene.cubemap.build_mips()
+            
         bg_color = [1, 1, 1] if config.dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
@@ -116,7 +116,7 @@ def predict(config):
             iter_start.record()
 
             render_pkg = render(view, config.opt.iterations, scene, config.pipeline, background,
-                                compute_loss=False, return_opacity=False)
+                                compute_loss=False, return_opacity=False, is_training=False)
             iter_end.record()
             torch.cuda.synchronize()
             elapsed = iter_start.elapsed_time(iter_end)
@@ -150,19 +150,19 @@ def test(config):
     with torch.no_grad():
         gaussians = GaussianModel(config.model.gaussian, config.render_type)
         scene = Scene(config, gaussians, config.exp_dir)
-        # scene.eval()
+        scene.eval()
 
         load_ckpt = config.get('load_ckpt', None)
         if load_ckpt is None:
             load_ckpt = os.path.join(scene.save_dir, "ckpt" + str(config.opt.iterations) + ".pth")
-        scene.load_checkpoint(load_ckpt)
+        scene.load_checkpoint(load_ckpt, is_training=False)
         
         if config.hdr is not None:
             hdri = read_hdr(os.path.join("data/hdr/high_res_envmaps_2k", f"{config.hdr}.hdr"))
             hdri = torch.from_numpy(hdri).cuda()
             res = 256
-            # cubemap = CubemapLight(base_res=res).cuda()
             scene.cubemap.base.data = latlong_to_cubemap(hdri, [res, res])
+            scene.cubemap.build_mips()
         
         bg_color = [1, 1, 1] if config.dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -184,7 +184,7 @@ def test(config):
             iter_start.record()
 
             render_pkg = render(view, config.opt.iterations, scene, config.pipeline, background, config.dataset.kernel_size,
-                                compute_loss=False, require_coord=True, require_depth=True)
+                                compute_loss=False, require_coord=True, require_depth=True, is_training=False)
             # pdb.set_trace()
             bbox_mask = render_pkg['opacity_render']
             bbox_mask = bbox_mask.squeeze().detach().cpu().numpy() # (H, W), ndarray
@@ -196,9 +196,10 @@ def test(config):
             torch.cuda.synchronize()
             elapsed = iter_start.elapsed_time(iter_end)
 
-            rendering = render_pkg["rendered_image"]
+            # rendering = render_pkg["rendered_image"]
             # rendering = rendering[:, y:y+h, x:x+w]
 
+            rendering = render_pkg["albedo_map"]
             gt = view.original_image[:3, :, :]
             # gt = gt[:, y:y+h, x:x+w]
 

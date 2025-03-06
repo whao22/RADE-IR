@@ -139,7 +139,7 @@ class Scene:
             
         torch.save(save_dict, self.save_dir + "/ckpt" + str(iteration) + ".pth")
 
-    def load_checkpoint(self, path, restore_optimizer=True):
+    def load_checkpoint(self, path, restore_optimizer=True, is_training=True):
         loaded_dict= torch.load(path)
         (first_iter, gaussian_params, converter_sd, converter_opt_sd, converter_scd_sd) = loaded_dict[:5]
         self.gaussians.restore(gaussian_params, self.cfg.opt)
@@ -148,7 +148,7 @@ class Scene:
             self.converter.optimizer.load_state_dict(converter_opt_sd)
             self.converter.scheduler.load_state_dict(converter_scd_sd)
         
-        if self.use_pbr:
+        if self.use_pbr and is_training:
             (irradiance_volumes_sd, cubemap_sd, light_optimizer_sd) = loaded_dict[5:]
             self.irradiance_volumes.load_state_dict(irradiance_volumes_sd)
             self.cubemap.load_state_dict(cubemap_sd)
