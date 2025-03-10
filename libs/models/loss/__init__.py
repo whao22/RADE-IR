@@ -156,42 +156,42 @@ def compute_loss(iteration, config, dataset, data, render_pkg, scene, loss_fn_vg
     loss += lambda_depth_normal * loss_depth_normal
     loss_dict["loss_depth_normal"] = loss_depth_normal
 
-    # normal consistency
-    if iteration > reg_from_iter + 1500:
-        lambda_normal_consistency = config.opt.lambda_normal_consistency
-        if lambda_normal_consistency > 0.:
-            loss_normal_consistency = compute_normal_consistency(render_pkg["deformed_gaussian"], render_pkg["normals_refined"])
-        else:
-            loss_normal_consistency = torch.tensor(0.).cuda()
-        loss += loss_normal_consistency * lambda_normal_consistency
-        loss_dict["loss_normal_consistency"] = loss_normal_consistency * lambda_normal_consistency
+    # # normal consistency
+    # if iteration > reg_from_iter + 1500:
+    #     lambda_normal_consistency = config.opt.lambda_normal_consistency
+    #     if lambda_normal_consistency > 0.:
+    #         loss_normal_consistency = compute_normal_consistency(render_pkg["deformed_gaussian"], render_pkg["normals_refined"])
+    #     else:
+    #         loss_normal_consistency = torch.tensor(0.).cuda()
+    #     loss += loss_normal_consistency * lambda_normal_consistency
+    #     loss_dict["loss_normal_consistency"] = loss_normal_consistency * lambda_normal_consistency
     
-    # refined normal image
-    rendered_normal2 = render_pkg["rendered_normal2"]
-    rendered_normal = render_pkg["rendered_normal"].detach()
-    if lambda_l1 > 0.:
-        loss_normal_l1 = l1_loss(rendered_normal2, rendered_normal)
-    else:
-        loss_normal_l1 = torch.tensor(0).cuda()
-    if lambda_dssim > 0.:
-        loss_normal_dssim = 1.0 - ssim(rendered_normal2, rendered_normal)
-    else:
-        loss_normal_dssim = torch.tensor(0).cuda()
-    loss += lambda_l1 * loss_normal_l1 + lambda_dssim * loss_normal_dssim
-    loss_dict.update({
-        "loss_normal_l1": loss_normal_l1,
-        "loss_normal_dssim": loss_normal_dssim,
-    })
+    # # refined normal image
+    # rendered_normal2 = render_pkg["rendered_normal2"]
+    # rendered_normal = render_pkg["rendered_normal"].detach()
+    # if lambda_l1 > 0.:
+    #     loss_normal_l1 = l1_loss(rendered_normal2, rendered_normal)
+    # else:
+    #     loss_normal_l1 = torch.tensor(0).cuda()
+    # if lambda_dssim > 0.:
+    #     loss_normal_dssim = 1.0 - ssim(rendered_normal2, rendered_normal)
+    # else:
+    #     loss_normal_dssim = torch.tensor(0).cuda()
+    # loss += lambda_l1 * loss_normal_l1 + lambda_dssim * loss_normal_dssim
+    # loss_dict.update({
+    #     "loss_normal_l1": loss_normal_l1,
+    #     "loss_normal_dssim": loss_normal_dssim,
+    # })
     
-    # refined normal tv loss
-    rendered_normal2 = render_pkg["rendered_normal2"]
-    lambda_normal_tv = C(iteration, config.opt.lambda_normal_tv)
-    if lambda_normal_tv > 0:
-        loss_normal2_tv = tv_loss(rendered_normal2) + tv_loss(rendered_normal)
-        loss += lambda_normal_tv * loss_normal2_tv
-    else:
-        loss_normal2_tv = torch.tensor(0.).cuda()
-    loss_dict["loss_normal2_tv"] = loss_normal2_tv
+    # # refined normal tv loss
+    # rendered_normal2 = render_pkg["rendered_normal2"]
+    # lambda_normal_tv = C(iteration, config.opt.lambda_normal_tv)
+    # if lambda_normal_tv > 0:
+    #     loss_normal2_tv = tv_loss(rendered_normal2) + tv_loss(rendered_normal)
+    #     loss += lambda_normal_tv * loss_normal2_tv
+    # else:
+    #     loss_normal2_tv = torch.tensor(0.).cuda()
+    # loss_dict["loss_normal2_tv"] = loss_normal2_tv
     ################# normal #####################
     
     # pbr loss

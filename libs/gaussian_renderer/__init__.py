@@ -185,15 +185,15 @@ def render(data,
         "visibility_filter" : radii > 0,
         "radii": radii,
         "loss_reg": loss_reg,})
-    normals_refined = torch.nn.functional.normalize(scene.normal_refine(normals.detach()))
+    # normals_refined = torch.nn.functional.normalize(scene.normal_refine(normals.detach()))
     
     ##################################################################################
     ############################ NEILF Optimization START ############################
     ##################################################################################
     # normal = pc.get_normal_per_vertex(cov3D_precomp_mtx, data.world_view_transform, data.projection_matrix)
-    visibility = pc.get_visibility(scene.sample_num, normals_refined, scales=_scales, opacity=opacity)
+    visibility = pc.get_visibility(scene.sample_num, normals, scales=_scales, opacity=opacity)
     base_color, roughness, metallic = torch.split(intrinsic_precompute, [3, 1, 1], dim=-1)
-    features = torch.cat([base_color, normals_refined, roughness, metallic, visibility.mean(-2)], dim=-1)
+    features = torch.cat([base_color, normals, roughness, metallic, visibility.mean(-2)], dim=-1)
     
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     (num_rendered, num_contrib, rendered_image2, rendered_opacity2, rendered_depth,
@@ -232,7 +232,7 @@ def render(data,
         "occlusion_map": rendered_visibility,
         "diffuse_map": rendered_diffuse,
         "specular_map": rendered_specular,
-        "normals_refined": normals_refined
+        "normals_refined": normals
     })
     
     return results
